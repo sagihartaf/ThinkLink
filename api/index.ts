@@ -146,15 +146,51 @@ const insertAppFeedbackSchema = createInsertSchema(appFeedback).omit({
 });
 
 // Types
-type User = typeof users.$inferSelect;
+type User = {
+  id: string;
+  email: string;
+  password: string;
+  displayName: string;
+  photoUrl: string | null;
+  createdAt: Date;
+};
 type InsertUser = z.infer<typeof insertUserSchema>;
-type Meetup = typeof meetups.$inferSelect;
+type Meetup = {
+  id: string;
+  hostId: string;
+  title: string;
+  topic: string;
+  description: string;
+  startAt: Date;
+  location: string;
+  capacity: number;
+  icebreaker: string | null;
+  createdAt: Date;
+};
 type InsertMeetup = z.infer<typeof insertMeetupSchema>;
-type Participation = typeof participations.$inferSelect;
+type Participation = {
+  meetupId: string;
+  userId: string;
+  status: string;
+  joinedAt: Date;
+};
 type InsertParticipation = z.infer<typeof insertParticipationSchema>;
-type Message = typeof messages.$inferSelect;
+type Message = {
+  id: string;
+  meetupId: string;
+  userId: string;
+  text: string;
+  createdAt: Date;
+};
 type InsertMessage = z.infer<typeof insertMessageSchema>;
-type AppFeedback = typeof appFeedback.$inferSelect;
+type AppFeedback = {
+  id: string;
+  userId: string;
+  message: string;
+  rating: number | null;
+  category: string | null;
+  createdAt: Date;
+};
 type InsertAppFeedback = z.infer<typeof insertAppFeedbackSchema>;
 
 // Database setup
