@@ -10,6 +10,9 @@ import connectPg from "connect-pg-simple";
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { eq, and, asc, sql } from "drizzle-orm";
+import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import { createInsertSchema } from "drizzle-zod";
 
 // Load environment variables
 dotenv.config();
@@ -22,10 +25,6 @@ console.log('Environment check:', {
 });
 
 // Schema definitions (inline to avoid module import issues in Vercel)
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
-import { createInsertSchema } from "drizzle-zod";
 
 const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -363,7 +362,7 @@ const storage = new DatabaseStorage();
 // Auth setup
 declare global {
   namespace Express {
-    interface User extends User {}
+    interface User extends typeof users.$inferSelect {}
   }
 }
 
