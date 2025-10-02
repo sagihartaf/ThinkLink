@@ -2,6 +2,8 @@
 
 ThinkLink is a modern web application that allows users to create, discover, and join meetups and events. Users can browse events by topic, join discussions, and connect with like-minded people.
 
+<!-- Updated: Fixed Vercel runtime configuration -->
+
 ## Features
 
 - 🎯 **Create & Join Meetups**: Host your own events or join existing ones
