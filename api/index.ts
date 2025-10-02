@@ -164,9 +164,17 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+console.log('🔗 Attempting database connection...');
+console.log('📍 Database URL host:', process.env.DATABASE_URL.split('@')[1]?.split('/')[0] || 'URL_PARSE_ERROR');
+console.log('🌍 Environment:', process.env.NODE_ENV);
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  // Add connection timeout and retry settings
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 10
 });
 
 const db = drizzle(pool, { 
@@ -424,6 +432,21 @@ passport.deserializeUser(async (id: string, done) => {
 // Auth routes
 app.post("/api/register", async (req, res, next) => {
   try {
+    console.log('🔐 Registration attempt for:', req.body.email);
+    
+    // Test database connection first
+    try {
+      await pool.query('SELECT 1');
+      console.log('✅ Database connection test successful');
+    } catch (dbError) {
+      console.error('❌ Database connection test failed:', dbError);
+      return res.status(500).json({ 
+        message: "Database connection failed", 
+        error: dbError.message,
+        code: dbError.code 
+      });
+    }
+
     const existingUser = await storage.getUserByEmail(req.body.email);
     if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
@@ -439,8 +462,19 @@ app.post("/api/register", async (req, res, next) => {
       res.status(201).json(user);
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: "Registration failed" });
+    console.error('❌ Registration error:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      syscall: error.syscall,
+      hostname: error.hostname,
+      stack: error.stack
+    });
+    res.status(500).json({ 
+      message: "Registration failed", 
+      error: error.message,
+      code: error.code 
+    });
   }
 });
 
@@ -464,16 +498,42 @@ console.log('✅ Authentication setup completed');
 
 // API Routes
 // Health check endpoint
-app.get("/api/health", (req, res) => {
-  res.json({ 
-    status: "OK", 
-    timestamp: new Date().toISOString(),
-    env: {
-      NODE_ENV: process.env.NODE_ENV,
-      DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
-      SESSION_SECRET: process.env.SESSION_SECRET ? 'SET' : 'NOT SET'
-    }
-  });
+app.get("/api/health", async (req, res) => {
+  try {
+    // Test database connection
+    const dbTest = await pool.query('SELECT 1 as test');
+    
+    res.json({
+      status: "OK",
+      timestamp: new Date().toISOString(),
+      env: {
+        NODE_ENV: process.env.NODE_ENV,
+        DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
+        DATABASE_HOST: process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0] : 'N/A',
+        SESSION_SECRET: process.env.SESSION_SECRET ? 'SET' : 'NOT SET'
+      },
+      database: {
+        connected: true,
+        testQuery: dbTest.rows[0]
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "ERROR",
+      timestamp: new Date().toISOString(),
+      env: {
+        NODE_ENV: process.env.NODE_ENV,
+        DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
+        DATABASE_HOST: process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0] : 'N/A',
+        SESSION_SECRET: process.env.SESSION_SECRET ? 'SET' : 'NOT SET'
+      },
+      database: {
+        connected: false,
+        error: error.message,
+        code: error.code
+      }
+    });
+  }
 });
 
 app.get("/api/meetups", async (req, res) => {
