@@ -8,6 +8,13 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
+// Debug environment variables
+console.log('Environment check:', {
+  NODE_ENV: process.env.NODE_ENV,
+  DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
+  SESSION_SECRET: process.env.SESSION_SECRET ? 'SET' : 'NOT SET'
+});
+
 const app = express();
 
 // Middleware
@@ -18,10 +25,28 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 
-// Setup authentication
-setupAuth(app);
+// Setup authentication with error handling
+try {
+  setupAuth(app);
+  console.log('✅ Authentication setup completed');
+} catch (error) {
+  console.error('❌ Authentication setup failed:', error);
+}
 
 // API Routes
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "OK", 
+    timestamp: new Date().toISOString(),
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
+      SESSION_SECRET: process.env.SESSION_SECRET ? 'SET' : 'NOT SET'
+    }
+  });
+});
+
 app.get("/api/meetups", async (req, res) => {
   try {
     const topic = req.query.topic as string;
@@ -262,12 +287,22 @@ app.post("/api/feedback", async (req, res) => {
 });
 
 // Error handling
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || err.statusCode || 500;
   const message = err.message || "Internal Server Error";
   
-  console.error('Error:', err);
-  res.status(status).json({ message });
+  console.error('❌ API Error:', {
+    url: req.url,
+    method: req.method,
+    error: err.message,
+    stack: err.stack,
+    timestamp: new Date().toISOString()
+  });
+  
+  res.status(status).json({ 
+    message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
 });
 
 export default app;
