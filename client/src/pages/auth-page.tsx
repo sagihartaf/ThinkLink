@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import logoPath from "@assets/Untitled design 2.png";
 
@@ -20,6 +21,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [rememberMe, setRememberMe] = useState(true); // Default to true for persistent login
 
   // Redirect if already logged in
   if (user) {
@@ -37,7 +39,7 @@ export default function AuthPage() {
     
     if (isLogin) {
       try {
-        await loginMutation.mutateAsync({ email, password });
+        await loginMutation.mutateAsync({ email, password, rememberMe });
         setLocation("/home");
       } catch (error) {
         // Error handled by mutation
@@ -185,6 +187,20 @@ export default function AuthPage() {
                 data-testid="input-password"
               />
             </div>
+            
+            {isLogin && (
+              <div className="flex items-center space-x-2 space-x-reverse">
+                <Checkbox
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  data-testid="checkbox-remember-me"
+                />
+                <Label htmlFor="rememberMe" className="text-sm font-normal cursor-pointer">
+                  זכור אותי (הישאר מחובר לתמיד)
+                </Label>
+              </div>
+            )}
             
             <Button 
               type="submit" 
