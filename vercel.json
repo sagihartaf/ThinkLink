@@ -1,4 +1,6 @@
 {
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "dist/public",
   "functions": {
     "api/index.ts": {
       "runtime": "@vercel/node@20.x"
@@ -8,10 +10,16 @@
     {
       "source": "/api/(.*)",
       "destination": "/api/index.ts"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.ts"
     },
     {
-      "source": "/((?!api).*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
