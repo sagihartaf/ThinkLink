@@ -379,7 +379,14 @@ const storage = new DatabaseStorage();
 // Auth setup
 declare global {
   namespace Express {
-    interface User extends typeof users.$inferSelect {}
+    interface User {
+      id: string;
+      email: string;
+      password: string;
+      displayName: string;
+      photoUrl: string | null;
+      createdAt: Date;
+    }
   }
 }
 
