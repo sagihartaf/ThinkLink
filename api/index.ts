@@ -457,7 +457,7 @@ app.post("/api/register", async (req, res, next) => {
     try {
       await pool.query('SELECT 1');
       console.log('✅ Database connection test successful');
-    } catch (dbError) {
+    } catch (dbError: any) {
       console.error('❌ Database connection test failed:', dbError);
       return res.status(500).json({ 
         message: "Database connection failed", 
@@ -488,7 +488,7 @@ app.post("/api/register", async (req, res, next) => {
         sessionDuration: req.session.cookie.maxAge
       });
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Registration error:', {
       message: error.message,
       code: error.code,
@@ -506,7 +506,7 @@ app.post("/api/register", async (req, res, next) => {
 });
 
 app.post("/api/login", (req, res, next) => {
-  passport.authenticate("local", (err, user, info) => {
+  passport.authenticate("local", (err: any, user: any, info: any) => {
     if (err) {
       return next(err);
     }
@@ -583,10 +583,10 @@ app.get("/api/health", async (req, res) => {
       ...baseResponse,
       database: {
         connected: true,
-        testQuery: dbTest.rows[0]
+        testQuery: (dbTest as any).rows[0]
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Health check: Database connection failed:', error);
     
     res.status(500).json({
