@@ -21,16 +21,142 @@ console.log('Environment check:', {
   SESSION_SECRET: process.env.SESSION_SECRET ? 'SET' : 'NOT SET'
 });
 
-// Import schema directly
-import { 
-  users, meetups, participations, messages, appFeedback,
-  insertMeetupSchema, insertParticipationSchema, insertMessageSchema, insertAppFeedbackSchema,
-  type User, type InsertUser,
-  type Meetup, type InsertMeetup,
-  type Participation, type InsertParticipation,
-  type Message, type InsertMessage,
-  type AppFeedback, type InsertAppFeedback
-} from "../shared/schema";
+// Schema definitions (inline to avoid module import issues in Vercel)
+import { sql } from "drizzle-orm";
+import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import { createInsertSchema } from "drizzle-zod";
+
+const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(),
+  displayName: text("display_name").notNull(),
+  photoUrl: text("photo_url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+const meetups = pgTable("meetups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  hostId: varchar("host_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  topic: text("topic").notNull(),
+  description: text("description").notNull(),
+  startAt: timestamp("start_at").notNull(),
+  location: text("location").notNull(),
+  capacity: integer("capacity").notNull(),
+  icebreaker: text("icebreaker"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+const participations = pgTable("participations", {
+  meetupId: varchar("meetup_id").notNull().references(() => meetups.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  status: text("status").notNull().default("joined"),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+});
+
+const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  meetupId: varchar("meetup_id").notNull().references(() => meetups.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  text: text("text").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+const appFeedback = pgTable("app_feedback", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  message: text("message").notNull(),
+  rating: integer("rating"),
+  category: text("category"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Relations
+const usersRelations = relations(users, ({ many }) => ({
+  hostedMeetups: many(meetups),
+  participations: many(participations),
+  messages: many(messages),
+  feedback: many(appFeedback),
+}));
+
+const meetupsRelations = relations(meetups, ({ one, many }) => ({
+  host: one(users, {
+    fields: [meetups.hostId],
+    references: [users.id],
+  }),
+  participations: many(participations),
+  messages: many(messages),
+}));
+
+const participationsRelations = relations(participations, ({ one }) => ({
+  meetup: one(meetups, {
+    fields: [participations.meetupId],
+    references: [meetups.id],
+  }),
+  user: one(users, {
+    fields: [participations.userId],
+    references: [users.id],
+  }),
+}));
+
+const messagesRelations = relations(messages, ({ one }) => ({
+  meetup: one(meetups, {
+    fields: [messages.meetupId],
+    references: [meetups.id],
+  }),
+  user: one(users, {
+    fields: [messages.userId],
+    references: [users.id],
+  }),
+}));
+
+const appFeedbackRelations = relations(appFeedback, ({ one }) => ({
+  user: one(users, {
+    fields: [appFeedback.userId],
+    references: [users.id],
+  }),
+}));
+
+// Insert schemas
+const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+});
+
+const insertMeetupSchema = createInsertSchema(meetups).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  startAt: z.coerce.date(),
+});
+
+const insertParticipationSchema = createInsertSchema(participations).omit({
+  joinedAt: true,
+});
+
+const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
+});
+
+const insertAppFeedbackSchema = createInsertSchema(appFeedback).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types
+type User = typeof users.$inferSelect;
+type InsertUser = z.infer<typeof insertUserSchema>;
+type Meetup = typeof meetups.$inferSelect;
+type InsertMeetup = z.infer<typeof insertMeetupSchema>;
+type Participation = typeof participations.$inferSelect;
+type InsertParticipation = z.infer<typeof insertParticipationSchema>;
+type Message = typeof messages.$inferSelect;
+type InsertMessage = z.infer<typeof insertMessageSchema>;
+type AppFeedback = typeof appFeedback.$inferSelect;
+type InsertAppFeedback = z.infer<typeof insertAppFeedbackSchema>;
 
 // Database setup
 if (!process.env.DATABASE_URL) {
@@ -44,7 +170,12 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-const db = drizzle(pool, { schema: { users, meetups, participations, messages, appFeedback } });
+const db = drizzle(pool, { 
+  schema: { 
+    users, meetups, participations, messages, appFeedback,
+    usersRelations, meetupsRelations, participationsRelations, messagesRelations, appFeedbackRelations
+  } 
+});
 
 // Storage class
 const PostgresSessionStore = connectPg(session);
