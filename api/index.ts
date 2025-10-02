@@ -408,12 +408,22 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 
-// Setup authentication
+// Setup authentication with persistent sessions
 const sessionSettings: session.SessionOptions = {
   secret: process.env.SESSION_SECRET!,
   resave: false,
   saveUninitialized: false,
   store: storage.sessionStore,
+  cookie: {
+    // Make sessions last for 1 year (365 days)
+    maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year in milliseconds
+    // Keep sessions secure but allow them to persist
+    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+    httpOnly: true, // Prevent XSS attacks
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Allow cross-site for production
+  },
+  // Don't destroy session on browser close
+  rolling: true, // Extend session on each request
 };
 
 app.set("trust proxy", 1);
@@ -468,7 +478,15 @@ app.post("/api/register", async (req, res, next) => {
 
     req.login(user, (err) => {
       if (err) return next(err);
-      res.status(201).json(user);
+      
+      // Set long session for new registrations (1 year by default)
+      req.session.cookie.maxAge = 365 * 24 * 60 * 60 * 1000; // 1 year
+      console.log('🔐 New user registered - session set to 1 year');
+      
+      res.status(201).json({
+        ...user,
+        sessionDuration: req.session.cookie.maxAge
+      });
     });
   } catch (error) {
     console.error('❌ Registration error:', {
@@ -487,8 +505,37 @@ app.post("/api/register", async (req, res, next) => {
   }
 });
 
-app.post("/api/login", passport.authenticate("local"), (req, res) => {
-  res.status(200).json(req.user);
+app.post("/api/login", (req, res, next) => {
+  passport.authenticate("local", (err, user, info) => {
+    if (err) {
+      return next(err);
+    }
+    if (!user) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    req.login(user, (err) => {
+      if (err) {
+        return next(err);
+      }
+
+      // If "Remember Me" is checked, extend session duration
+      if (req.body.rememberMe) {
+        // Extend session to 1 year for "Remember Me"
+        req.session.cookie.maxAge = 365 * 24 * 60 * 60 * 1000; // 1 year
+        console.log('🔐 Remember Me enabled - session extended to 1 year');
+      } else {
+        // Default session duration (still long, but shorter)
+        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+        console.log('🔐 Standard login - session set to 30 days');
+      }
+
+      res.status(200).json({
+        ...user,
+        sessionDuration: req.session.cookie.maxAge
+      });
+    });
+  })(req, res, next);
 });
 
 app.post("/api/logout", (req, res, next) => {
