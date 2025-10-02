@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "command": "node",
+      "args": [
+        "./node_modules/@supabase/mcp-server-supabase/dist/index.js"
+      ],
+      "env": {
+        "SUPABASE_URL": "https://your-project-id.supabase.co",
+        "SUPABASE_ANON_KEY": "your-anon-key",
+        "SUPABASE_SERVICE_ROLE_KEY": "your-service-role-key"
+      }
+    }
+  }
+}

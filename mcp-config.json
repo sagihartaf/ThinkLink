@@ -1,0 +1,6 @@
+{
+  "supabaseUrl": "https://hziongcacamxclnkloho.supabase.co",
+  "supabaseAnonKey": "your-anon-key-from-supabase-dashboard",
+  "supabaseServiceRoleKey": "your-service-role-key-from-supabase-dashboard",
+  "port": 3001
+}
