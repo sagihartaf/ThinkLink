@@ -168,13 +168,22 @@ console.log('🔗 Attempting database connection...');
 console.log('📍 Database URL host:', process.env.DATABASE_URL.split('@')[1]?.split('/')[0] || 'URL_PARSE_ERROR');
 console.log('🌍 Environment:', process.env.NODE_ENV);
 
+// Try to use connection pooling URL if available, fallback to direct connection
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+console.log('🔄 Using connection string type:', process.env.POSTGRES_URL ? 'POSTGRES_URL (pooled)' : 'DATABASE_URL (direct)');
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: connectionString,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   // Add connection timeout and retry settings
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: 15000,
   idleTimeoutMillis: 30000,
-  max: 10
+  max: 5, // Reduce max connections for serverless
+  // Additional options for better Vercel compatibility
+  ...(process.env.NODE_ENV === 'production' && {
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+  })
 });
 
 const db = drizzle(pool, { 
