@@ -499,38 +499,50 @@ console.log('✅ Authentication setup completed');
 // API Routes
 // Health check endpoint
 app.get("/api/health", async (req, res) => {
+  const baseResponse = {
+    timestamp: new Date().toISOString(),
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
+      DATABASE_HOST: process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0] : 'N/A',
+      SESSION_SECRET: process.env.SESSION_SECRET ? 'SET' : 'NOT SET'
+    }
+  };
+
   try {
-    // Test database connection
-    const dbTest = await pool.query('SELECT 1 as test');
+    console.log('🔍 Health check: Testing database connection...');
+    
+    // Test database connection with timeout
+    const dbTest = await Promise.race([
+      pool.query('SELECT 1 as test'),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database connection timeout')), 5000)
+      )
+    ]);
+    
+    console.log('✅ Health check: Database connection successful');
     
     res.json({
       status: "OK",
-      timestamp: new Date().toISOString(),
-      env: {
-        NODE_ENV: process.env.NODE_ENV,
-        DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
-        DATABASE_HOST: process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0] : 'N/A',
-        SESSION_SECRET: process.env.SESSION_SECRET ? 'SET' : 'NOT SET'
-      },
+      ...baseResponse,
       database: {
         connected: true,
         testQuery: dbTest.rows[0]
       }
     });
   } catch (error) {
+    console.error('❌ Health check: Database connection failed:', error);
+    
     res.status(500).json({
       status: "ERROR",
-      timestamp: new Date().toISOString(),
-      env: {
-        NODE_ENV: process.env.NODE_ENV,
-        DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
-        DATABASE_HOST: process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0] : 'N/A',
-        SESSION_SECRET: process.env.SESSION_SECRET ? 'SET' : 'NOT SET'
-      },
+      ...baseResponse,
       database: {
         connected: false,
         error: error.message,
-        code: error.code
+        code: error.code,
+        errno: error.errno,
+        syscall: error.syscall,
+        hostname: error.hostname
       }
     });
   }
