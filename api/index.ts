@@ -1,9 +1,15 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { setupAuth } from "../server/auth";
-import { storage } from "../server/storage";
-import { insertMeetupSchema, insertParticipationSchema, insertMessageSchema, insertAppFeedbackSchema } from "../shared/schema";
 import { z } from "zod";
 import dotenv from "dotenv";
+import passport from "passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import session from "express-session";
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
+import connectPg from "connect-pg-simple";
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { eq, and, asc, sql } from "drizzle-orm";
 
 // Load environment variables
 dotenv.config();
@@ -15,6 +21,236 @@ console.log('Environment check:', {
   SESSION_SECRET: process.env.SESSION_SECRET ? 'SET' : 'NOT SET'
 });
 
+// Import schema directly
+import { 
+  users, meetups, participations, messages, appFeedback,
+  insertMeetupSchema, insertParticipationSchema, insertMessageSchema, insertAppFeedbackSchema,
+  type User, type InsertUser,
+  type Meetup, type InsertMeetup,
+  type Participation, type InsertParticipation,
+  type Message, type InsertMessage,
+  type AppFeedback, type InsertAppFeedback
+} from "../shared/schema";
+
+// Database setup
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL must be set. Did you forget to provision a database?",
+  );
+}
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+const db = drizzle(pool, { schema: { users, meetups, participations, messages, appFeedback } });
+
+// Storage class
+const PostgresSessionStore = connectPg(session);
+
+class DatabaseStorage {
+  sessionStore: session.Store;
+
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true 
+    });
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async getMeetup(id: string): Promise<Meetup | undefined> {
+    const [meetup] = await db.select().from(meetups).where(eq(meetups.id, id));
+    return meetup || undefined;
+  }
+
+  async getMeetupWithHost(id: string): Promise<(Meetup & { host: User }) | undefined> {
+    const [result] = await db
+      .select()
+      .from(meetups)
+      .innerJoin(users, eq(meetups.hostId, users.id))
+      .where(eq(meetups.id, id));
+    
+    if (!result) return undefined;
+    
+    return {
+      ...result.meetups,
+      host: result.users
+    };
+  }
+
+  async getMeetups(): Promise<Meetup[]> {
+    return await db.select().from(meetups).orderBy(asc(meetups.startAt));
+  }
+
+  async getMeetupsByTopic(topic: string): Promise<Meetup[]> {
+    return await db
+      .select()
+      .from(meetups)
+      .where(eq(meetups.topic, topic))
+      .orderBy(asc(meetups.startAt));
+  }
+
+  async getMeetupsByHost(hostId: string): Promise<Meetup[]> {
+    return await db
+      .select()
+      .from(meetups)
+      .where(eq(meetups.hostId, hostId))
+      .orderBy(asc(meetups.startAt));
+  }
+
+  async getJoinedMeetups(userId: string): Promise<Meetup[]> {
+    const results = await db
+      .select({ meetup: meetups })
+      .from(participations)
+      .innerJoin(meetups, eq(participations.meetupId, meetups.id))
+      .where(eq(participations.userId, userId))
+      .orderBy(asc(meetups.startAt));
+    
+    return results.map(r => r.meetup);
+  }
+
+  async createMeetup(insertMeetup: InsertMeetup): Promise<Meetup> {
+    const [meetup] = await db
+      .insert(meetups)
+      .values(insertMeetup)
+      .returning();
+    return meetup;
+  }
+
+  async getParticipation(meetupId: string, userId: string): Promise<Participation | undefined> {
+    const [participation] = await db
+      .select()
+      .from(participations)
+      .where(and(
+        eq(participations.meetupId, meetupId),
+        eq(participations.userId, userId)
+      ));
+    return participation || undefined;
+  }
+
+  async getParticipationsByMeetup(meetupId: string): Promise<(Participation & { user: User })[]> {
+    const results = await db
+      .select()
+      .from(participations)
+      .innerJoin(users, eq(participations.userId, users.id))
+      .where(eq(participations.meetupId, meetupId))
+      .orderBy(asc(participations.joinedAt));
+    
+    return results.map(r => ({
+      ...r.participations,
+      user: r.users
+    }));
+  }
+
+  async getParticipationCount(meetupId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(participations)
+      .where(eq(participations.meetupId, meetupId));
+    
+    return result[0]?.count || 0;
+  }
+
+  async createParticipation(insertParticipation: InsertParticipation): Promise<Participation> {
+    const [participation] = await db
+      .insert(participations)
+      .values(insertParticipation)
+      .returning();
+    return participation;
+  }
+
+  async getMessagesByMeetup(meetupId: string): Promise<(Message & { user: User })[]> {
+    const results = await db
+      .select()
+      .from(messages)
+      .innerJoin(users, eq(messages.userId, users.id))
+      .where(eq(messages.meetupId, meetupId))
+      .orderBy(asc(messages.createdAt));
+    
+    return results.map(r => ({
+      ...r.messages,
+      user: r.users
+    }));
+  }
+
+  async createMessage(insertMessage: InsertMessage): Promise<Message & { user: User }> {
+    const [message] = await db
+      .insert(messages)
+      .values(insertMessage)
+      .returning();
+    
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, message.userId));
+    
+    return {
+      ...message,
+      user
+    };
+  }
+
+  async createFeedback(insertFeedback: InsertAppFeedback): Promise<AppFeedback> {
+    const [feedback] = await db
+      .insert(appFeedback)
+      .values(insertFeedback)
+      .returning();
+    return feedback;
+  }
+}
+
+const storage = new DatabaseStorage();
+
+// Auth setup
+declare global {
+  namespace Express {
+    interface User extends User {}
+  }
+}
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
+
+async function comparePasswords(supplied: string, stored: string) {
+  const [hashed, salt] = stored.split(".");
+  const hashedBuf = Buffer.from(hashed, "hex");
+  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  return timingSafeEqual(hashedBuf, suppliedBuf);
+}
+
 const app = express();
 
 // Middleware
@@ -25,13 +261,76 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false }));
 
-// Setup authentication with error handling
-try {
-  setupAuth(app);
-  console.log('✅ Authentication setup completed');
-} catch (error) {
-  console.error('❌ Authentication setup failed:', error);
-}
+// Setup authentication
+const sessionSettings: session.SessionOptions = {
+  secret: process.env.SESSION_SECRET!,
+  resave: false,
+  saveUninitialized: false,
+  store: storage.sessionStore,
+};
+
+app.set("trust proxy", 1);
+app.use(session(sessionSettings));
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(
+  new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
+    const user = await storage.getUserByEmail(email);
+    if (!user || !(await comparePasswords(password, user.password))) {
+      return done(null, false);
+    } else {
+      return done(null, user);
+    }
+  }),
+);
+
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser(async (id: string, done) => {
+  const user = await storage.getUser(id);
+  done(null, user);
+});
+
+// Auth routes
+app.post("/api/register", async (req, res, next) => {
+  try {
+    const existingUser = await storage.getUserByEmail(req.body.email);
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+
+    const user = await storage.createUser({
+      ...req.body,
+      password: await hashPassword(req.body.password),
+    });
+
+    req.login(user, (err) => {
+      if (err) return next(err);
+      res.status(201).json(user);
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ message: "Registration failed" });
+  }
+});
+
+app.post("/api/login", passport.authenticate("local"), (req, res) => {
+  res.status(200).json(req.user);
+});
+
+app.post("/api/logout", (req, res, next) => {
+  req.logout((err) => {
+    if (err) return next(err);
+    res.sendStatus(200);
+  });
+});
+
+app.get("/api/user", (req, res) => {
+  if (!req.isAuthenticated()) return res.sendStatus(401);
+  res.json(req.user);
+});
+
+console.log('✅ Authentication setup completed');
 
 // API Routes
 // Health check endpoint
