@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { UserPen, MessageSquare, LogOut, X, Star } from "lucide-react";
-import logoPath from "@assets/Untitled design 2.png";
+const logoPath = "/thinklink-logo.png";
 
 export default function ProfilePage() {
   const { user, logoutMutation } = useAuth();

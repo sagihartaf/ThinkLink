@@ -6,7 +6,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { MeetupCard } from "@/components/meetup-card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import logoPath from "@assets/Untitled design 2.png";
+const logoPath = "/thinklink-logo.png";
 import type { Meetup } from "@shared/schema";
 
 const topics = ["הכל", "טכנולוגיה", "תרבות", "פילוסופיה", "פסיכולוגיה", "אחר"];

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import logoPath from "@assets/Untitled design 2.png";
+const logoPath = "/thinklink-logo.png";
 
 interface OnboardingProps {
   onComplete: () => void;

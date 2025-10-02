@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
-import logoPath from "@assets/Untitled design 2.png";
+const logoPath = "/thinklink-logo.png";
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
