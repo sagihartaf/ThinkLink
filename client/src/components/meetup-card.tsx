@@ -5,7 +5,7 @@ import { he } from "date-fns/locale";
 import type { Meetup } from "@shared/schema";
 
 interface MeetupCardProps {
-  meetup: Meetup;
+  meetup: Meetup & { joined_count?: number };
   showHostBadge?: boolean;
   onClick: () => void;
 }
@@ -63,8 +63,7 @@ export function MeetupCard({ meetup, showHostBadge = false, onClick }: MeetupCar
           <div className="flex items-center gap-1.5 text-[#18cb96] font-medium">
             <Users className="h-4 w-4" />
             <span data-testid="text-capacity">
-              {/* This would be populated with actual participant count */}
-              0/{meetup.capacity}
+              {meetup.joined_count ?? 0}/{meetup.capacity}
             </span>
           </div>
         </div>

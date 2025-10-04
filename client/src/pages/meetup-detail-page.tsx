@@ -6,13 +6,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Share, Edit, Calendar, MapPin, Users, Lightbulb, Send } from "lucide-react";
+import { ArrowRight, Share, Edit, Calendar, MapPin, Users, Lightbulb, Send, CalendarPlus } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
 import type { Meetup, User, Message, Participation } from "@shared/schema";
 
 interface MeetupWithHost extends Meetup {
   host: User;
+  joined_count?: number;
 }
 
 interface MessageWithUser extends Message {
@@ -86,9 +87,11 @@ export default function MeetupDetailPage() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/meetups", meetupId, "participants"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user", "joined-meetups"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/meetups", meetupId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/meetups"] });
       toast({
         title: "הצטרפת למפגש בהצלחה!",
         description: "תוכלו לראות את המפגש ברשימת המפגשים שלכם"
@@ -134,10 +137,71 @@ export default function MeetupDetailPage() {
     }
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: meetup.title,
+      text: `${meetup.title}\n\n${format(new Date(meetup.startAt), "dd MMMM yyyy, HH:mm", { locale: he })}\n${meetup.location}\n\nהצטרפו אלינו ב-ThinkLink!`,
+      url: window.location.href
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (error) {
+        // User cancelled sharing
+        console.log('Share cancelled');
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+        toast({
+          title: "הקישור הועתק ללוח",
+          description: "תוכלו לשתף את המפגש עם חברים"
+        });
+      } catch (error) {
+        console.error('Failed to copy to clipboard:', error);
+      }
+    }
+  };
+
+  const handleAddToCalendar = () => {
+    const startDate = new Date(meetup.startAt);
+    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours duration
+    
+    const calendarData = {
+      title: meetup.title,
+      description: `${meetup.description}\n\nמיקום: ${meetup.location}\n\nהצטרפו אלינו ב-ThinkLink!`,
+      location: meetup.location,
+      startDate: startDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z',
+      endDate: endDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+    };
+
+    // Generate Google Calendar URL
+    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(calendarData.title)}&dates=${calendarData.startDate}/${calendarData.endDate}&details=${encodeURIComponent(calendarData.description)}&location=${encodeURIComponent(calendarData.location)}`;
+    
+    // Generate Apple Calendar URL
+    const appleCalendarUrl = `data:text/calendar;charset=utf8,BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${calendarData.startDate}\nDTEND:${calendarData.endDate}\nSUMMARY:${calendarData.title}\nDESCRIPTION:${calendarData.description}\nLOCATION:${calendarData.location}\nEND:VEVENT\nEND:VCALENDAR`;
+
+    // Try to detect if user is on iOS/Apple device
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    if (isIOS) {
+      // For iOS, use Apple Calendar
+      const link = document.createElement('a');
+      link.href = appleCalendarUrl;
+      link.download = 'meetup.ics';
+      link.click();
+    } else {
+      // For other devices, open Google Calendar
+      window.open(googleCalendarUrl, '_blank');
+    }
+  };
+
   const isHost = meetup?.hostId === user?.id;
   const isParticipant = participants.some(p => p.userId === user?.id);
   const canViewDiscussion = isHost || isParticipant;
-  const isFull = participants.length >= (meetup?.capacity || 0);
+  const isFull = (meetup?.joined_count ?? participants.length) >= (meetup?.capacity || 0);
   const hasJoined = isParticipant;
 
   if (meetupLoading) {
@@ -182,8 +246,11 @@ export default function MeetupDetailPage() {
           <ArrowRight className="h-5 w-5" />
         </Button>
         <div className="flex-1"></div>
-        <Button variant="ghost" size="icon" data-testid="button-share">
+        <Button variant="ghost" size="icon" onClick={handleShare} data-testid="button-share">
           <Share className="h-5 w-5" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={handleAddToCalendar} data-testid="button-add-calendar">
+          <CalendarPlus className="h-5 w-5" />
         </Button>
         {isHost && (
           <Button variant="ghost" size="icon" data-testid="button-edit">
@@ -243,7 +310,7 @@ export default function MeetupDetailPage() {
             <div>
               <div className="text-sm text-[#9AA0A6]">גודל הקבוצה</div>
               <div className="font-medium text-[#1b1b1b]" data-testid="text-capacity">
-                עד {meetup.capacity} משתתפים
+                {meetup.joined_count ?? participants.length}/{meetup.capacity} משתתפים
               </div>
             </div>
           </div>
@@ -252,7 +319,7 @@ export default function MeetupDetailPage() {
         {/* Participants */}
         <div className="space-y-4">
           <h3 className="font-bold text-lg text-[#1b1b1b]">
-            משתתפים (<span data-testid="text-participant-count">{participants.length}</span>)
+            משתתפים (<span data-testid="text-participant-count">{meetup.joined_count ?? participants.length}</span>)
           </h3>
           
           {participants.length === 0 ? (

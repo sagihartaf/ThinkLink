@@ -10,7 +10,7 @@ export default function MyEventsPage() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<"joined" | "hosting">("joined");
 
-  const { data: joinedMeetups = [], isLoading: joinedLoading } = useQuery<Meetup[]>({
+  const { data: joinedMeetups = [], isLoading: joinedLoading } = useQuery<(Meetup & { joined_count?: number })[]>({
     queryKey: ["/api/user/joined-meetups"],
     queryFn: async ({ queryKey }) => {
       const response = await fetch(queryKey[0] as string, { credentials: "include" });
@@ -20,7 +20,7 @@ export default function MyEventsPage() {
     enabled: activeTab === "joined"
   });
 
-  const { data: hostedMeetups = [], isLoading: hostedLoading } = useQuery<Meetup[]>({
+  const { data: hostedMeetups = [], isLoading: hostedLoading } = useQuery<(Meetup & { joined_count?: number })[]>({
     queryKey: ["/api/user/hosted-meetups"],
     queryFn: async ({ queryKey }) => {
       const response = await fetch(queryKey[0] as string, { credentials: "include" });

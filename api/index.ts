@@ -274,31 +274,74 @@ class DatabaseStorage {
     return meetup || undefined;
   }
 
-  async getMeetupWithHost(id: string): Promise<(Meetup & { host: User }) | undefined> {
+  async getMeetupWithHost(id: string): Promise<(Meetup & { host: User; joined_count: number }) | undefined> {
     const [result] = await db
-      .select()
+      .select({
+        meetup: meetups,
+        host: users,
+        joined_count: sql<number>`COALESCE(COUNT(${participations.meetupId}), 0)::int`
+      })
       .from(meetups)
       .innerJoin(users, eq(meetups.hostId, users.id))
-      .where(eq(meetups.id, id));
+      .leftJoin(participations, and(
+        eq(participations.meetupId, meetups.id),
+        eq(participations.status, 'joined')
+      ))
+      .where(eq(meetups.id, id))
+      .groupBy(meetups.id, users.id);
     
     if (!result) return undefined;
     
     return {
-      ...result.meetups,
-      host: result.users
+      ...result.meetup,
+      host: result.host,
+      joined_count: result.joined_count
     };
   }
 
-  async getMeetups(): Promise<Meetup[]> {
-    return await db.select().from(meetups).orderBy(asc(meetups.startAt));
+  async getMeetups(): Promise<(Meetup & { joined_count: number })[]> {
+    const results = await db
+      .select({
+        meetup: meetups,
+        joined_count: sql<number>`COALESCE(COUNT(${participations.meetupId}), 0)::int`
+      })
+      .from(meetups)
+      .leftJoin(participations, and(
+        eq(participations.meetupId, meetups.id),
+        eq(participations.status, 'joined')
+      ))
+      .where(sql`${meetups.startAt} >= NOW()`)
+      .groupBy(meetups.id)
+      .orderBy(asc(meetups.startAt));
+    
+    return results.map(r => ({
+      ...r.meetup,
+      joined_count: r.joined_count
+    }));
   }
 
-  async getMeetupsByTopic(topic: string): Promise<Meetup[]> {
-    return await db
-      .select()
+  async getMeetupsByTopic(topic: string): Promise<(Meetup & { joined_count: number })[]> {
+    const results = await db
+      .select({
+        meetup: meetups,
+        joined_count: sql<number>`COALESCE(COUNT(${participations.meetupId}), 0)::int`
+      })
       .from(meetups)
-      .where(eq(meetups.topic, topic))
+      .leftJoin(participations, and(
+        eq(participations.meetupId, meetups.id),
+        eq(participations.status, 'joined')
+      ))
+      .where(and(
+        eq(meetups.topic, topic),
+        sql`${meetups.startAt} >= NOW()`
+      ))
+      .groupBy(meetups.id)
       .orderBy(asc(meetups.startAt));
+    
+    return results.map(r => ({
+      ...r.meetup,
+      joined_count: r.joined_count
+    }));
   }
 
   async getMeetupsByHost(hostId: string): Promise<Meetup[]> {
@@ -309,15 +352,29 @@ class DatabaseStorage {
       .orderBy(asc(meetups.startAt));
   }
 
-  async getJoinedMeetups(userId: string): Promise<Meetup[]> {
+  async getJoinedMeetups(userId: string): Promise<(Meetup & { joined_count: number })[]> {
     const results = await db
-      .select({ meetup: meetups })
+      .select({
+        meetup: meetups,
+        joined_count: sql<number>`COALESCE(COUNT(part2.meetup_id), 0)::int`
+      })
       .from(participations)
       .innerJoin(meetups, eq(participations.meetupId, meetups.id))
-      .where(eq(participations.userId, userId))
+      .leftJoin(sql`participations part2`, and(
+        sql`part2.meetup_id = ${participations.meetupId}`,
+        sql`part2.status = 'joined'`
+      ))
+      .where(and(
+        eq(participations.userId, userId),
+        sql`${meetups.startAt} >= NOW()`
+      ))
+      .groupBy(meetups.id, participations.meetupId)
       .orderBy(asc(meetups.startAt));
     
-    return results.map(r => r.meetup);
+    return results.map(r => ({
+      ...r.meetup,
+      joined_count: r.joined_count
+    }));
   }
 
   async createMeetup(insertMeetup: InsertMeetup): Promise<Meetup> {
@@ -740,7 +797,15 @@ app.post("/api/meetups/:id/join", async (req, res) => {
       status: "joined"
     });
 
-    res.status(201).json(participation);
+    // Get updated count
+    const updatedCount = await storage.getParticipationCount(meetupId);
+
+    res.status(201).json({
+      participation,
+      joined_count: updatedCount,
+      capacity: meetup.capacity,
+      is_full: updatedCount >= meetup.capacity
+    });
   } catch (error) {
     res.status(500).json({ message: "Failed to join meetup" });
   }
