@@ -169,33 +169,75 @@ export default function MeetupDetailPage() {
     const startDate = new Date(meetup.startAt);
     const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours duration
     
+    // Format dates for ICS (YYYYMMDDTHHMMSSZ)
+    const formatICSDate = (date: Date) => {
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+    
     const calendarData = {
       title: meetup.title,
-      description: `${meetup.description}\n\nמיקום: ${meetup.location}\n\nהצטרפו אלינו ב-ThinkLink!`,
+      description: `${meetup.description}\\n\\nמיקום: ${meetup.location}\\n\\nהצטרפו אלינו ב-ThinkLink!`,
       location: meetup.location,
-      startDate: startDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z',
-      endDate: endDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+      startDate: formatICSDate(startDate),
+      endDate: formatICSDate(endDate),
+      uid: `thinklink-${meetup.id}@thinklink.app`
     };
 
-    // Generate Google Calendar URL
-    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(calendarData.title)}&dates=${calendarData.startDate}/${calendarData.endDate}&details=${encodeURIComponent(calendarData.description)}&location=${encodeURIComponent(calendarData.location)}`;
-    
-    // Generate Apple Calendar URL
-    const appleCalendarUrl = `data:text/calendar;charset=utf8,BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${calendarData.startDate}\nDTEND:${calendarData.endDate}\nSUMMARY:${calendarData.title}\nDESCRIPTION:${calendarData.description}\nLOCATION:${calendarData.location}\nEND:VEVENT\nEND:VCALENDAR`;
+    // Generate proper ICS content
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//ThinkLink//ThinkLink Calendar//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${calendarData.uid}`,
+      `DTSTART:${calendarData.startDate}`,
+      `DTEND:${calendarData.endDate}`,
+      `SUMMARY:${calendarData.title}`,
+      `DESCRIPTION:${calendarData.description}`,
+      `LOCATION:${calendarData.location}`,
+      'STATUS:CONFIRMED',
+      'TRANSP:OPAQUE',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n');
 
-    // Try to detect if user is on iOS/Apple device
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    // Create blob with correct MIME type
+    const blob = new Blob([icsContent], { 
+      type: 'text/calendar;charset=utf-8' 
+    });
+
+    // Create download link
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${meetup.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
+    link.style.display = 'none';
     
-    if (isIOS) {
-      // For iOS, use Apple Calendar
-      const link = document.createElement('a');
-      link.href = appleCalendarUrl;
-      link.download = 'meetup.ics';
-      link.click();
-    } else {
-      // For other devices, open Google Calendar
-      window.open(googleCalendarUrl, '_blank');
-    }
+    // Add to DOM, click, and cleanup
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    // Also provide Google Calendar as fallback option
+    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(calendarData.title)}&dates=${calendarData.startDate}/${calendarData.endDate}&details=${encodeURIComponent(meetup.description + '\\n\\nמיקום: ' + meetup.location + '\\n\\nהצטרפו אלינו ב-ThinkLink!')}&location=${encodeURIComponent(calendarData.location)}`;
+    
+    // Show success message with additional option
+    toast({
+      title: "הוסף ללוח השנה",
+      description: "הקובץ הורד. ניתן גם לפתוח ב-Google Calendar",
+      action: (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => window.open(googleCalendarUrl, '_blank')}
+        >
+          פתח ב-Google Calendar
+        </Button>
+      )
+    });
   };
 
   const isHost = meetup?.hostId === user?.id;
