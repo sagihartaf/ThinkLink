@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Share, Edit, Calendar, MapPin, Users, Lightbulb, Send, CalendarPlus } from "lucide-react";
+import { ArrowRight, Share, Edit, Calendar, MapPin, Users, Lightbulb, Send, CalendarPlus, LogOut } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
 import type { Meetup, User, Message, Participation } from "@shared/schema";
@@ -100,6 +100,37 @@ export default function MeetupDetailPage() {
     onError: (error: Error) => {
       toast({
         title: "שגיאה בהצטרפות למפגש",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const leaveMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/meetups/${meetupId}/leave`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/meetups", meetupId, "participants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user", "joined-meetups"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/meetups", meetupId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/meetups"] });
+      toast({
+        title: "עזבת את המפגש",
+        description: "הסרתם את עצמכם מרשימת המשתתפים"
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "שגיאה בעזיבת המפגש",
         description: error.message,
         variant: "destructive"
       });
@@ -388,6 +419,22 @@ export default function MeetupDetailPage() {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+          
+          {/* Leave Meeting Button - Only show for participants (not hosts) */}
+          {hasJoined && !isHost && (
+            <div className="pt-4 border-t border-gray-200">
+              <Button
+                onClick={() => leaveMutation.mutate()}
+                variant="destructive"
+                className="w-full"
+                disabled={leaveMutation.isPending}
+                data-testid="button-leave-meeting"
+              >
+                <LogOut className="h-4 w-4 ml-2" />
+                {leaveMutation.isPending ? "עוזב..." : "לעזוב את המפגש"}
+              </Button>
             </div>
           )}
         </div>

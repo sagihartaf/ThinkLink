@@ -811,6 +811,43 @@ app.post("/api/meetups/:id/join", async (req, res) => {
   }
 });
 
+app.delete("/api/meetups/:id/leave", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+
+  try {
+    const meetupId = req.params.id;
+    const userId = req.user!.id;
+
+    const existing = await storage.getParticipation(meetupId, userId);
+    if (!existing) {
+      return res.status(400).json({ message: "You are not a participant in this meetup" });
+    }
+
+    // Delete the participation record
+    await db
+      .delete(participations)
+      .where(and(
+        eq(participations.meetupId, meetupId),
+        eq(participations.userId, userId)
+      ));
+
+    // Get updated count
+    const updatedCount = await storage.getParticipationCount(meetupId);
+    const meetup = await storage.getMeetup(meetupId);
+
+    res.status(200).json({
+      message: "Successfully left the meetup",
+      joined_count: updatedCount,
+      capacity: meetup?.capacity || 0,
+      is_full: updatedCount >= (meetup?.capacity || 0)
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to leave meetup" });
+  }
+});
+
 // User routes
 app.get("/api/user/joined-meetups", async (req, res) => {
   if (!req.isAuthenticated()) {
