@@ -509,8 +509,12 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: false }));
 
 // Setup authentication with persistent sessions
+if (!process.env.SESSION_SECRET) {
+  throw new Error("SESSION_SECRET must be set");
+}
+
 const sessionSettings: session.SessionOptions = {
-  secret: process.env.SESSION_SECRET!,
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   store: storage.sessionStore,
@@ -520,7 +524,7 @@ const sessionSettings: session.SessionOptions = {
     // Keep sessions secure but allow them to persist
     secure: process.env.NODE_ENV === 'production', // HTTPS only in production
     httpOnly: true, // Prevent XSS attacks
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Allow cross-site for production
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Fix sameSite configuration
   },
   // Don't destroy session on browser close
   rolling: true, // Extend session on each request
@@ -552,19 +556,6 @@ passport.deserializeUser(async (id: string, done) => {
 app.post("/api/register", async (req, res, next) => {
   try {
     console.log('🔐 Registration attempt for:', req.body.email);
-    
-    // Test database connection first
-    try {
-      await pool.query('SELECT 1');
-      console.log('✅ Database connection test successful');
-    } catch (dbError: any) {
-      console.error('❌ Database connection test failed:', dbError);
-      return res.status(500).json({ 
-        message: "Database connection failed", 
-        error: dbError.message,
-        code: dbError.code 
-      });
-    }
 
     const existingUser = await storage.getUserByEmail(req.body.email);
     if (existingUser) {

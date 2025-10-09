@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { Onboarding } from "@/components/onboarding";
@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 const logoPath = "/thinklink-logo.png";
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
@@ -24,8 +26,13 @@ export default function AuthPage() {
   const [rememberMe, setRememberMe] = useState(true); // Default to true for persistent login
 
   // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      setLocation("/home");
+    }
+  }, [user, setLocation]);
+
   if (user) {
-    setLocation("/home");
     return null;
   }
 
@@ -72,9 +79,21 @@ export default function AuthPage() {
       
       if (response.ok) {
         setLocation("/home");
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Profile update failed",
+          description: error.message || "Failed to update profile",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error("Profile setup failed:", error);
+      toast({
+        title: "Profile update failed",
+        description: "Network error occurred",
+        variant: "destructive"
+      });
     }
   };
 
