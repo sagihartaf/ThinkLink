@@ -535,6 +535,21 @@ app.use(session(sessionSettings));
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Middleware to handle failed deserialization
+app.use((req, res, next) => {
+  // If user deserialization failed, clear the session
+  const session = req.session as any;
+  if (session && session.passport && session.passport.user && !req.user) {
+    console.log('🔄 Clearing invalid session for user:', session.passport.user);
+    req.logout((err) => {
+      if (err) console.error('Error during logout:', err);
+      next();
+    });
+  } else {
+    next();
+  }
+});
+
 passport.use(
   new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
     const user = await storage.getUserByEmail(email);
@@ -548,8 +563,21 @@ passport.use(
 
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser(async (id: string, done) => {
-  const user = await storage.getUser(id);
-  done(null, user);
+  try {
+    console.log('🔍 Attempting to deserialize user with ID:', id);
+    const user = await storage.getUser(id);
+    if (user) {
+      console.log('✅ User deserialized successfully:', user.email);
+      done(null, user);
+    } else {
+      console.log('❌ User not found during deserialization, clearing session');
+      // User no longer exists, clear the session
+      done(null, false);
+    }
+  } catch (error) {
+    console.error('❌ Error during user deserialization:', error);
+    done(error, false);
+  }
 });
 
 // Auth routes
