@@ -29,15 +29,14 @@ export default function HomePage() {
   });
 
   // Handle authentication for protected actions
-  const handleAuthRequired = (action: string) => {
-    // Store the intended action in sessionStorage for redirect after login
-    sessionStorage.setItem('intendedAction', action);
-    setLocation("/auth");
+  const handleAuthRequired = (redirectTo: string) => {
+    // Navigate to auth page with redirectTo parameter
+    setLocation(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`);
   };
 
   const handleCreateMeetup = () => {
     if (!user) {
-      handleAuthRequired('create-meetup');
+      handleAuthRequired('/create-meetup');
     } else {
       setLocation("/create-meetup");
     }
@@ -45,7 +44,7 @@ export default function HomePage() {
 
   const handleMeetupClick = (meetupId: string) => {
     if (!user) {
-      handleAuthRequired(`meetup-${meetupId}`);
+      handleAuthRequired(`/meetup/${meetupId}`);
     } else {
       setLocation(`/meetup/${meetupId}`);
     }

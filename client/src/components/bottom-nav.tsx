@@ -37,9 +37,8 @@ export function BottomNav({ currentRoute }: BottomNavProps) {
 
   const handleNavClick = (item: typeof navItems[0]) => {
     if (item.requiresAuth && !user) {
-      // Store the intended action for redirect after login
-      sessionStorage.setItem('intendedAction', item.path);
-      setLocation("/auth");
+      // Navigate to auth page with redirectTo parameter
+      setLocation(`/auth?redirectTo=${encodeURIComponent(item.path)}`);
     } else {
       setLocation(item.path);
     }

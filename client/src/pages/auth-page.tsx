@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Onboarding } from "@/components/onboarding";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,13 @@ const logoPath = "/thinklink-logo.png";
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [, setLocation] = useLocation();
+  const search = useSearch();
   const { toast } = useToast();
+  
+  // Extract redirectTo parameter from URL
+  const urlParams = new URLSearchParams(search);
+  const redirectTo = urlParams.get('redirectTo');
+  
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
@@ -28,16 +34,11 @@ export default function AuthPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      // Check if there's an intended action to redirect to
-      const intendedAction = sessionStorage.getItem('intendedAction');
-      if (intendedAction) {
-        sessionStorage.removeItem('intendedAction');
-        setLocation(intendedAction);
-      } else {
-        setLocation("/home");
-      }
+      // Use redirectTo parameter if available, otherwise go to home
+      const destination = redirectTo || "/home";
+      setLocation(destination);
     }
-  }, [user, setLocation]);
+  }, [user, setLocation, redirectTo]);
 
   if (user) {
     return null;
@@ -45,7 +46,12 @@ export default function AuthPage() {
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
-    setLocation("/home"); // Go directly to home instead of auth
+    // If there's a redirectTo parameter, go to auth instead of home
+    if (redirectTo) {
+      setShowAuth(true);
+    } else {
+      setLocation("/home"); // Go directly to home if no redirect needed
+    }
   };
 
   const handleAuth = async (e: React.FormEvent) => {
