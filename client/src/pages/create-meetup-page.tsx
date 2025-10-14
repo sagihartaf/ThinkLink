@@ -18,6 +18,9 @@ const topics = [
   { value: "תרבות", label: "תרבות" },
   { value: "פילוסופיה", label: "פילוסופיה" },
   { value: "פסיכולוגיה", label: "פסיכולוגיה" },
+  { value: "ספורט", label: "ספורט" },
+  { value: "מוזיקה", label: "מוזיקה" },
+  { value: "פיננסים", label: "פיננסים" },
   { value: "אחר", label: "אחר" }
 ];
 

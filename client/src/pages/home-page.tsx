@@ -9,7 +9,7 @@ import { Plus } from "lucide-react";
 const logoPath = "/thinklink-logo.png";
 import type { Meetup } from "@shared/schema";
 
-const topics = ["הכל", "טכנולוגיה", "תרבות", "פילוסופיה", "פסיכולוגיה", "אחר"];
+const topics = ["הכל", "טכנולוגיה", "תרבות", "פילוסופיה", "פסיכולוגיה", "ספורט", "מוזיקה", "פיננסים", "אחר"];
 
 export default function HomePage() {
   const { user } = useAuth();
