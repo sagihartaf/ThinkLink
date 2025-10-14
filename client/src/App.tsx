@@ -17,8 +17,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
-      <ProtectedRoute path="/" component={HomePage} />
-      <ProtectedRoute path="/home" component={HomePage} />
+      <Route path="/" component={HomePage} />
+      <Route path="/home" component={HomePage} />
       <ProtectedRoute path="/create-meetup" component={CreateMeetupPage} />
       <ProtectedRoute path="/meetup/:id" component={MeetupDetailPage} />
       <ProtectedRoute path="/my-events" component={MyEventsPage} />

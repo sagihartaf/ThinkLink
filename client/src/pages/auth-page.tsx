@@ -28,7 +28,14 @@ export default function AuthPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      setLocation("/home");
+      // Check if there's an intended action to redirect to
+      const intendedAction = sessionStorage.getItem('intendedAction');
+      if (intendedAction) {
+        sessionStorage.removeItem('intendedAction');
+        setLocation(intendedAction);
+      } else {
+        setLocation("/home");
+      }
     }
   }, [user, setLocation]);
 
@@ -38,7 +45,7 @@ export default function AuthPage() {
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
-    setShowAuth(true);
+    setLocation("/home"); // Go directly to home instead of auth
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -47,7 +54,7 @@ export default function AuthPage() {
     if (isLogin) {
       try {
         await loginMutation.mutateAsync({ email, password, rememberMe });
-        setLocation("/home");
+        // Redirect will be handled by useEffect when user state updates
       } catch (error) {
         // Error handled by mutation
       }
@@ -78,7 +85,7 @@ export default function AuthPage() {
       });
       
       if (response.ok) {
-        setLocation("/home");
+        // Redirect will be handled by useEffect when user state updates
       } else {
         const error = await response.json();
         toast({

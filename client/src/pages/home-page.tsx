@@ -28,6 +28,29 @@ export default function HomePage() {
     }
   });
 
+  // Handle authentication for protected actions
+  const handleAuthRequired = (action: string) => {
+    // Store the intended action in sessionStorage for redirect after login
+    sessionStorage.setItem('intendedAction', action);
+    setLocation("/auth");
+  };
+
+  const handleCreateMeetup = () => {
+    if (!user) {
+      handleAuthRequired('create-meetup');
+    } else {
+      setLocation("/create-meetup");
+    }
+  };
+
+  const handleMeetupClick = (meetupId: string) => {
+    if (!user) {
+      handleAuthRequired(`meetup-${meetupId}`);
+    } else {
+      setLocation(`/meetup/${meetupId}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f4f9ff] pb-20" dir="rtl">
       {/* Header */}
@@ -92,7 +115,7 @@ export default function HomePage() {
               <MeetupCard 
                 key={meetup.id} 
                 meetup={meetup}
-                onClick={() => setLocation(`/meetup/${meetup.id}`)}
+                onClick={() => handleMeetupClick(meetup.id)}
               />
             ))}
           </div>
@@ -101,7 +124,7 @@ export default function HomePage() {
 
       {/* FAB Create Meetup */}
       <Button
-        onClick={() => setLocation("/create-meetup")}
+        onClick={handleCreateMeetup}
         className="fixed bottom-24 left-4 w-14 h-14 rounded-full bg-gradient-to-r from-[#8c52ff] to-[#5ce1e6] hover:opacity-90 shadow-2xl"
         data-testid="button-create-meetup"
       >
