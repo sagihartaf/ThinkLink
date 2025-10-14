@@ -28,6 +28,26 @@ const capacities = [
   { value: 15, label: "15 משתתפים" }
 ];
 
+const places = [
+  { area: "שכונה ד׳", address: "אלכסנדר ינאי 14", place: "בנג׳י" },
+  { area: "שכונה ד׳", address: "דרך מצדה 6", place: "רוזה בר" },
+  { area: "שכונה ד׳", address: "שמעון בר גיורא 29", place: "בר גיורא" },
+  { area: "שכונה ג׳", address: "התקווה 8", place: "ברבסבא" },
+  { area: "שכונה ב׳", address: "מרכז חן ביאליק 26", place: "גיזה בר" },
+  { area: "שכונה ב׳", address: "יעקב כהן 12", place: "רוסטרס" },
+  { area: "שכונה ב׳", address: "שמעוני 2", place: "גוסטה פיצה" },
+  { area: "שכונה ב׳", address: "גרץ 7", place: "קפה רגע (בפארק הסופרים)" },
+  { area: "רמות", address: "האנרגיה 77", place: "ג׳מס באר שבע" },
+  { area: "העיר העתיקה", address: "החלוץ 29", place: "בית הבירה" },
+  { area: "העיר העתיקה", address: "ההסתדרות 39", place: "פרלה (בר שכונתי)" },
+  { area: "הבלוק", address: "ראובן רובין 3", place: "או לה לה" },
+  { area: "הבלוק", address: "ראובן רובין 7", place: "טינטו" },
+  { area: "דרך מצדה", address: "מצדה 39", place: "נאנו בר" },
+  { area: "דרך מצדה", address: "מצדה 31", place: "מצדה 31" },
+  { area: "דרך מצדה", address: "מצדה 17", place: "פרינדס בר" },
+  { area: "אנדרטת חטיבת הנגב", address: "מעלה החטיבה 1", place: "הדבשת, עגלת קפה" }
+];
+
 export default function CreateMeetupPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -39,6 +59,8 @@ export default function CreateMeetupPage() {
     title: "",
     description: "",
     startAt: "",
+    selectedArea: "",
+    selectedPlace: "",
     location: "",
     capacity: "",
     icebreaker: ""
@@ -75,12 +97,22 @@ export default function CreateMeetupPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate that a location is selected
+    if (!formData.location) {
+      toast({
+        title: "שגיאה",
+        description: "אנא בחרו מיקום למפגש",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     const meetupData: Omit<InsertMeetup, "hostId"> = {
       topic: formData.topic,
       title: formData.title,
       description: formData.description,
       startAt: new Date(formData.startAt),
-      location: formData.location,
+      location: formData.location, // This will contain the formatted location string
       capacity: parseInt(formData.capacity),
       icebreaker: formData.icebreaker || undefined
     };
@@ -90,6 +122,39 @@ export default function CreateMeetupPage() {
 
   const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Get unique areas from places data
+  const getAreas = () => {
+    const uniqueAreas = Array.from(new Set(places.map(place => place.area)));
+    return uniqueAreas.sort();
+  };
+
+  // Get places filtered by selected area
+  const getPlacesInArea = (area: string) => {
+    return places.filter(place => place.area === area);
+  };
+
+  // Handle area selection
+  const handleAreaChange = (area: string) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      selectedArea: area, 
+      selectedPlace: "", // Reset place selection when area changes
+      location: "" // Reset location string
+    }));
+  };
+
+  // Handle place selection
+  const handlePlaceChange = (placeIndex: string) => {
+    const selectedPlaceData = places[parseInt(placeIndex)];
+    const locationString = `${selectedPlaceData.place} — ${selectedPlaceData.address} (${selectedPlaceData.area})`;
+    
+    setFormData(prev => ({ 
+      ...prev, 
+      selectedPlace: placeIndex,
+      location: locationString
+    }));
   };
 
   return (
@@ -169,18 +234,54 @@ export default function CreateMeetupPage() {
           />
         </div>
 
-        {/* Location */}
+        {/* Location Selection */}
         <div>
-          <Label htmlFor="location">מיקום *</Label>
-          <Input
-            id="location"
-            value={formData.location}
-            onChange={(e) => updateFormData("location", e.target.value)}
-            placeholder="למשל: קפה רוטשילד, תל אביב"
-            required
-            className="mt-2"
-            data-testid="input-location"
-          />
+          <Label htmlFor="area">מיקום המפגש *</Label>
+          
+          {/* Area Selection */}
+          <div className="mt-2">
+            <Select value={formData.selectedArea} onValueChange={handleAreaChange}>
+              <SelectTrigger className="w-full" data-testid="select-area">
+                <SelectValue placeholder="בחרו אזור" />
+              </SelectTrigger>
+              <SelectContent>
+                {getAreas().map((area) => (
+                  <SelectItem key={area} value={area}>
+                    {area}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Place Selection */}
+          {formData.selectedArea && (
+            <div className="mt-3">
+              <Select value={formData.selectedPlace} onValueChange={handlePlaceChange}>
+                <SelectTrigger className="w-full" data-testid="select-place">
+                  <SelectValue placeholder="בחרו מקום" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getPlacesInArea(formData.selectedArea).map((place, index) => {
+                    const placeIndex = places.findIndex(p => p === place);
+                    return (
+                      <SelectItem key={placeIndex} value={placeIndex.toString()}>
+                        {place.place} — {place.address} ({place.area})
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Display selected location */}
+          {formData.location && (
+            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="text-sm text-green-800 font-medium">מיקום נבחר:</div>
+              <div className="text-sm text-green-700">{formData.location}</div>
+            </div>
+          )}
         </div>
 
         {/* Capacity */}
