@@ -21,8 +21,14 @@ export default function AuthPage() {
   const urlParams = new URLSearchParams(search);
   const redirectTo = urlParams.get('redirectTo');
   
-  const [showOnboarding, setShowOnboarding] = useState(true);
-  const [showAuth, setShowAuth] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    // Check if onboarding was already completed in this session
+    return sessionStorage.getItem('onboardingComplete') !== 'true';
+  });
+  const [showAuth, setShowAuth] = useState(() => {
+    // If onboarding was completed and there's a redirectTo, show auth immediately
+    return sessionStorage.getItem('onboardingComplete') === 'true' && !!redirectTo;
+  });
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
@@ -45,6 +51,9 @@ export default function AuthPage() {
   }
 
   const handleOnboardingComplete = () => {
+    // Mark onboarding as completed in session storage
+    sessionStorage.setItem('onboardingComplete', 'true');
+    
     setShowOnboarding(false);
     // If there's a redirectTo parameter, go to auth instead of home
     if (redirectTo) {
