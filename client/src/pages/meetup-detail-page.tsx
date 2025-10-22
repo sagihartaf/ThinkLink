@@ -385,8 +385,8 @@ export default function MeetupDetailPage() {
     });
   };
 
-  const isHost = meetup?.hostId === user?.id;
-  const isParticipant = participants.some(p => p.userId === user?.id);
+  const isHost = meetup?.host_id === user?.id;
+  const isParticipant = participants.some(p => p.user_id === user?.id);
   const canViewDiscussion = isHost || isParticipant;
   const isFull = (meetup?.joined_count ?? participants.length) >= (meetup?.capacity || 0);
   const hasJoined = isParticipant;
@@ -528,16 +528,16 @@ export default function MeetupDetailPage() {
             <div className="flex flex-wrap gap-3" data-testid="list-participants">
               {participants.map((participant) => (
                 <div 
-                  key={participant.userId}
+                  key={participant.user_id}
                   className="flex items-center gap-2 bg-white rounded-full pr-1 pl-3 py-1 border border-gray-200"
                 >
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8c52ff] to-[#5ce1e6] flex items-center justify-center text-white text-sm font-bold">
-                    {participant.user.displayName.charAt(0).toUpperCase()}
+                    {(participant.user?.full_name || 'משתמש').charAt(0).toUpperCase()}
                   </div>
                   <span className="text-sm font-medium text-[#1b1b1b]">
-                    {participant.user.displayName}
+                    {participant.user?.full_name || 'משתמש'}
                   </span>
-                  {participant.userId === meetup.hostId && (
+                  {participant.user_id === meetup.host_id && (
                     <Badge variant="secondary" className="text-xs bg-[#18cb96]/10 text-[#18cb96]">
                       מארח/ת
                     </Badge>
