@@ -22,19 +22,12 @@ export default function HomePage() {
     queryFn: async ({ queryKey }) => {
       const [, topic] = queryKey as [string, string];
       
-      // Build the query step by step to ensure proper filtering
-      let query = supabase
-        .from('meetups')
-        .select('*')
-        .gte('start_at', 'now()') // Use PostgreSQL's now() function for timezone-aware filtering
-        .order('start_at', { ascending: true });
+      // Prepare parameters for the RPC function
+      const rpcParams = topic && topic !== "הכל" ? { p_topic: topic } : {};
       
-      // Apply topic filter if not "הכל"
-      if (topic && topic !== "הכל") {
-        query = query.eq('topic', topic);
-      }
-      
-      const { data, error } = await query;
+      // Call the RPC function instead of direct table query
+      const { data, error } = await supabase
+        .rpc('get_future_meetups', rpcParams);
       
       if (error) throw error;
       return data || [];
