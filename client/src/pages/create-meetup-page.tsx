@@ -130,7 +130,7 @@ export default function CreateMeetupPage() {
       topic: formData.topic,
       title: formData.title,
       description: formData.description,
-      start_at: new Date(formData.startAt).toISOString(),
+      start_at: formData.startAt + ':00', // Convert '2025-01-23T22:00' to '2025-01-23T22:00:00' (naive timestamp)
       location: formData.location,
       ...(selectedPlaceData?.place ? { place_name: selectedPlaceData.place } : {}),
       ...(selectedPlaceData?.place === "מקום אחר (הקלדה ידנית)" && customLocationText.trim()
