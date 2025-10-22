@@ -40,6 +40,28 @@ export default function HomePage() {
     }
   });
 
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) {
+        // If profile doesn't exist, return null
+        if (error.code === 'PGRST116') return null;
+        throw error;
+      }
+      
+      return profileData;
+    },
+    enabled: !!user?.id
+  });
+
   // Handle authentication for protected actions
   const handleAuthRequired = (redirectTo: string) => {
     // Navigate to auth page with redirectTo parameter
@@ -71,7 +93,9 @@ export default function HomePage() {
         </div>
         <div className="space-y-1 text-center">
           <h1 className="text-xl font-bold text-[#1b1b1b]">
-            ברוך הבא, <span data-testid="text-user-name">{user?.displayName}</span>
+            ברוך הבא, <span data-testid="text-user-name">
+              {profileLoading ? 'טוען...' : profile?.full_name || 'חבר/ה'}
+            </span>
           </h1>
           <p className="text-[#9AA0A6] text-sm">הצטרפו לשיחות שמעניינות אתכם</p>
         </div>
