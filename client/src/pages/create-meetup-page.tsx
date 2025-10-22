@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowRight, Info } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
-import type { InsertMeetup } from "@shared/schema";
 
 const topics = [
   { value: "טכנולוגיה", label: "טכנולוגיה" },
@@ -73,15 +73,18 @@ export default function CreateMeetupPage() {
   const [customLocationText, setCustomLocationText] = useState("");
 
   const createMeetupMutation = useMutation({
-    mutationFn: async (data: Omit<InsertMeetup, "hostId">) => {
-      const response = await fetch("/api/meetups", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error("Failed to create meetup");
-      return response.json();
+    mutationFn: async (data: any) => {
+      const { data: meetup, error } = await supabase
+        .from('meetups')
+        .insert({
+          ...data,
+          hostId: user?.id
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return meetup;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/meetups"] });
@@ -115,18 +118,18 @@ export default function CreateMeetupPage() {
     
     const selectedPlaceData = formData.selectedPlace !== "" ? places[parseInt(formData.selectedPlace)] : undefined;
 
-    const meetupData: Omit<InsertMeetup, "hostId"> = {
+    const meetupData = {
       topic: formData.topic,
       title: formData.title,
       description: formData.description,
-      startAt: new Date(formData.startAt),
+      startAt: new Date(formData.startAt).toISOString(),
       location: formData.location,
       ...(selectedPlaceData?.place ? { placeName: selectedPlaceData.place } : {}),
       ...(selectedPlaceData?.place === "מקום אחר (הקלדה ידנית)" && customLocationText.trim()
         ? { customLocationDetails: customLocationText.trim() }
         : {}),
       capacity: parseInt(formData.capacity),
-      icebreaker: formData.icebreaker || undefined
+      icebreaker: formData.icebreaker || null
     };
 
     createMeetupMutation.mutate(meetupData);

@@ -1,12 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertMeetupSchema, insertParticipationSchema, insertMessageSchema, insertAppFeedbackSchema } from "@shared/schema";
 import { z } from "zod";
 
 export function registerRoutes(app: Express): Server {
-  setupAuth(app);
+  // Custom auth setup removed - using Supabase auth instead
 
   // Meetups routes
   app.get("/api/meetups", async (req, res) => {
