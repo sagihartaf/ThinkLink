@@ -298,7 +298,7 @@ export default function CreateMeetupPage() {
                     <Input
                       value={customLocationText}
                       onChange={(e) => setCustomLocationText(e.target.value)}
-                      placeholder="לדוגמה: מגרש כדורסל בפארק הסופרים, טיילת..."
+                      placeholder="לדוגמה: מגרש כדורסל במרכז הספורט"
                       data-testid="input-custom-location"
                     />
                   </div>
