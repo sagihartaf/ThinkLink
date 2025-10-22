@@ -279,6 +279,8 @@ export default function MeetupDetailPage() {
   };
 
   const handleShare = async () => {
+    if (!meetup?.start_at) return;
+    
     const shareData = {
       title: meetup.title,
       text: `${meetup.title}\n\n${format(new Date(meetup.start_at), "dd MMMM yyyy, HH:mm", { locale: he })}\n${meetup.location}\n\nהצטרפו אלינו ב-ThinkLink!`,
@@ -307,6 +309,8 @@ export default function MeetupDetailPage() {
   };
 
   const handleAddToCalendar = () => {
+    if (!meetup?.start_at) return;
+    
     const startDate = new Date(meetup.start_at);
     const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours duration
     
@@ -469,7 +473,7 @@ export default function MeetupDetailPage() {
             <div>
               <div className="text-sm text-[#9AA0A6]">תאריך ושעה</div>
               <div className="font-medium text-[#1b1b1b]" data-testid="text-start-time">
-                {format(new Date(meetup.start_at), "dd MMMM yyyy, HH:mm", { locale: he })}
+                {meetup?.start_at ? format(new Date(meetup.start_at), "dd MMMM yyyy, HH:mm", { locale: he }) : 'טוען...'}
               </div>
             </div>
           </div>
@@ -480,10 +484,10 @@ export default function MeetupDetailPage() {
             </div>
             <div>
               <div className="text-sm text-[#9AA0A6]">מיקום</div>
-              {meetup.placeName === "מקום אחר (הקלדה ידנית)" && meetup.customLocationDetails ? (
+              {meetup.place_name === "מקום אחר (הקלדה ידנית)" && meetup.custom_location_details ? (
                 <div>
                   <div className="font-medium text-[#1b1b1b]" data-testid="text-location">
-                    {meetup.customLocationDetails}
+                    {meetup.custom_location_details}
                   </div>
                   <div className="text-xs text-[#9AA0A6] mt-1">
                     שימו לב: באחריות המשתתפים לוודא שהמקום ציבורי ונגיש. מומלץ לתאם פרטים סופיים בצ'אט המפגש.
@@ -587,15 +591,15 @@ export default function MeetupDetailPage() {
                 messages.map((message) => (
                   <div key={message.id} className="flex gap-3">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8c52ff] to-[#5ce1e6] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                      {message.user.displayName.charAt(0).toUpperCase()}
+                      {(message.user.full_name || 'משתמש').charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 space-y-1">
                       <div className="flex items-baseline gap-2">
                         <span className="font-medium text-sm text-[#1b1b1b]">
-                          {message.user.displayName}
+                          {message.user.full_name || 'משתמש'}
                         </span>
                         <span className="text-xs text-[#9AA0A6]">
-                          {format(new Date(message.createdAt), "HH:mm")}
+                          {message.created_at ? format(new Date(message.created_at), "HH:mm") : 'טוען...'}
                         </span>
                       </div>
                       <div className="bg-white rounded-lg p-3 border border-gray-200 max-w-[80%]">

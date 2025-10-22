@@ -50,7 +50,7 @@ export function MeetupCard({ meetup, showHostBadge = false, onClick }: MeetupCar
           <div className="flex items-center gap-1.5">
             <Calendar className="h-4 w-4 text-[#18cb96]" />
             <span data-testid="text-start-time">
-              {format(new Date(meetup.startAt), "dd MMMM yyyy, HH:mm", { locale: he })}
+              {meetup.start_at ? format(new Date(meetup.start_at), "dd MMMM yyyy, HH:mm", { locale: he }) : 'טוען...'}
             </span>
           </div>
         </div>
@@ -59,8 +59,8 @@ export function MeetupCard({ meetup, showHostBadge = false, onClick }: MeetupCar
           <div className="flex items-center gap-1.5 text-[#9AA0A6]">
             <MapPin className="h-4 w-4 text-[#18cb96]" />
             <span data-testid="text-location">
-              {meetup.placeName === "מקום אחר (הקלדה ידנית)" && meetup.customLocationDetails
-                ? meetup.customLocationDetails
+              {meetup.place_name === "מקום אחר (הקלדה ידנית)" && meetup.custom_location_details
+                ? meetup.custom_location_details
                 : meetup.location}
             </span>
           </div>
