@@ -58,7 +58,11 @@ export function MeetupCard({ meetup, showHostBadge = false, onClick }: MeetupCar
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-1.5 text-[#9AA0A6]">
             <MapPin className="h-4 w-4 text-[#18cb96]" />
-            <span data-testid="text-location">{meetup.location}</span>
+            <span data-testid="text-location">
+              {meetup.placeName === "מקום אחר (הקלדה ידנית)" && meetup.customLocationDetails
+                ? meetup.customLocationDetails
+                : meetup.location}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 text-[#18cb96] font-medium">
             <Users className="h-4 w-4" />

@@ -43,6 +43,8 @@ const meetups = pgTable("meetups", {
   description: text("description").notNull(),
   startAt: timestamp("start_at").notNull(),
   location: text("location").notNull(),
+  placeName: text("place_name"),
+  customLocationDetails: text("custom_location_details"),
   capacity: integer("capacity").notNull(),
   icebreaker: text("icebreaker"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -163,6 +165,8 @@ type Meetup = {
   description: string;
   startAt: Date;
   location: string;
+  placeName: string | null;
+  customLocationDetails: string | null;
   capacity: number;
   icebreaker: string | null;
   createdAt: Date;

@@ -370,9 +370,20 @@ export default function MeetupDetailPage() {
             </div>
             <div>
               <div className="text-sm text-[#9AA0A6]">מיקום</div>
-              <div className="font-medium text-[#1b1b1b]" data-testid="text-location">
-                {meetup.location}
-              </div>
+              {meetup.placeName === "מקום אחר (הקלדה ידנית)" && meetup.customLocationDetails ? (
+                <div>
+                  <div className="font-medium text-[#1b1b1b]" data-testid="text-location">
+                    {meetup.customLocationDetails}
+                  </div>
+                  <div className="text-xs text-[#9AA0A6] mt-1">
+                    שימו לב: באחריות המשתתפים לוודא שהמקום ציבורי ונגיש. מומלץ לתאם פרטים סופיים בצ'אט המפגש.
+                  </div>
+                </div>
+              ) : (
+                <div className="font-medium text-[#1b1b1b]" data-testid="text-location">
+                  {meetup.location}
+                </div>
+              )}
             </div>
           </div>
 

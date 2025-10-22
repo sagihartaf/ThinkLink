@@ -32,6 +32,7 @@ const capacities = [
 ];
 
 const places = [
+  { area: "אחר", address: "לתיאום משותף", place: "מקום אחר (הקלדה ידנית)" },
   { area: "שכונה ד׳", address: "אלכסנדר ינאי 14", place: "בנג׳י" },
   { area: "שכונה ד׳", address: "דרך מצדה 6", place: "רוזה בר" },
   { area: "שכונה ד׳", address: "שמעון בר גיורא 29", place: "בר גיורא" },
@@ -68,6 +69,8 @@ export default function CreateMeetupPage() {
     capacity: "",
     icebreaker: ""
   });
+
+  const [customLocationText, setCustomLocationText] = useState("");
 
   const createMeetupMutation = useMutation({
     mutationFn: async (data: Omit<InsertMeetup, "hostId">) => {
@@ -110,12 +113,18 @@ export default function CreateMeetupPage() {
       return;
     }
     
+    const selectedPlaceData = formData.selectedPlace !== "" ? places[parseInt(formData.selectedPlace)] : undefined;
+
     const meetupData: Omit<InsertMeetup, "hostId"> = {
       topic: formData.topic,
       title: formData.title,
       description: formData.description,
       startAt: new Date(formData.startAt),
-      location: formData.location, // This will contain the formatted location string
+      location: formData.location,
+      ...(selectedPlaceData?.place ? { placeName: selectedPlaceData.place } : {}),
+      ...(selectedPlaceData?.place === "מקום אחר (הקלדה ידנית)" && customLocationText.trim()
+        ? { customLocationDetails: customLocationText.trim() }
+        : {}),
       capacity: parseInt(formData.capacity),
       icebreaker: formData.icebreaker || undefined
     };
@@ -158,6 +167,10 @@ export default function CreateMeetupPage() {
       selectedPlace: placeIndex,
       location: locationString
     }));
+
+    if (selectedPlaceData.place !== "מקום אחר (הקלדה ידנית)") {
+      setCustomLocationText("");
+    }
   };
 
   return (
@@ -275,6 +288,22 @@ export default function CreateMeetupPage() {
                   })}
                 </SelectContent>
               </Select>
+              {(() => {
+                if (formData.selectedPlace === "") return null;
+                const selected = places[parseInt(formData.selectedPlace)];
+                if (!selected) return null;
+                if (selected.place !== "מקום אחר (הקלדה ידנית)") return null;
+                return (
+                  <div className="mt-3">
+                    <Input
+                      value={customLocationText}
+                      onChange={(e) => setCustomLocationText(e.target.value)}
+                      placeholder="לדוגמה: מגרש כדורסל בפארק הסופרים, טיילת..."
+                      data-testid="input-custom-location"
+                    />
+                  </div>
+                );
+              })()}
             </div>
           )}
 
