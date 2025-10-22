@@ -74,11 +74,18 @@ export default function CreateMeetupPage() {
 
   const createMeetupMutation = useMutation({
     mutationFn: async (data: any) => {
+      // Get the current user to ensure we have a valid user ID
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      if (!currentUser) {
+        throw new Error('No user logged in');
+      }
+
       const { data: meetup, error } = await supabase
         .from('meetups')
         .insert({
           ...data,
-          hostId: user?.id
+          host_id: currentUser.id  // Use host_id (with underscore) to match database column
         })
         .select()
         .single();
@@ -94,10 +101,11 @@ export default function CreateMeetupPage() {
       });
       setLocation("/home");
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('Error creating meetup:', error);
       toast({
         title: "שגיאה ביצירת המפגש",
-        description: "אנא נסו שוב מאוחר יותר",
+        description: error.message || "אנא נסו שוב מאוחר יותר",
         variant: "destructive"
       });
     }
