@@ -761,7 +761,9 @@ app.post("/api/meetups", async (req, res) => {
       ...req.body,
       hostId: req.user!.id
     });
-    const meetup = await storage.createMeetup(meetupData);
+    // Strip optional fields that may not exist in the DB yet
+    const { placeName, customLocationDetails, ...safeData } = (meetupData as any);
+    const meetup = await storage.createMeetup(safeData);
     res.status(201).json(meetup);
   } catch (error) {
     if (error instanceof z.ZodError) {
