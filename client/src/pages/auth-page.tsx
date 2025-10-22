@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 const logoPath = "/thinklink-logo.png";
 
 export default function AuthPage() {
@@ -91,29 +92,37 @@ export default function AuthPage() {
   const handleProfileSetup = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user) {
+      toast({
+        title: "שגיאה",
+        description: "משתמש לא מחובר",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
-      const response = await fetch("/api/user/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ displayName, photoUrl: photoUrl || undefined })
+      const { error } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          full_name: displayName,
+          avatar_url: photoUrl || null
+        });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "הפרופיל עודכן בהצלחה!",
+        description: "המשך לאפליקציה"
       });
       
-      if (response.ok) {
-        // Redirect will be handled by useEffect when user state updates
-      } else {
-        const error = await response.json();
-        toast({
-          title: "Profile update failed",
-          description: error.message || "Failed to update profile",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
+      // Redirect will be handled by useEffect when user state updates
+    } catch (error: any) {
       console.error("Profile setup failed:", error);
       toast({
-        title: "Profile update failed",
-        description: "Network error occurred",
+        title: "עדכון פרופיל נכשל",
+        description: error.message || "שגיאת רשת",
         variant: "destructive"
       });
     }
