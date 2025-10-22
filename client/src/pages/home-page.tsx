@@ -22,13 +22,17 @@ export default function HomePage() {
     queryFn: async ({ queryKey }) => {
       const [, topic] = queryKey as [string, string];
       
+      // Get current time in ISO format for precise filtering
+      const now = new Date().toISOString();
+      
+      // Build the query step by step to ensure proper filtering
       let query = supabase
         .from('meetups')
         .select('*')
-        .gte('start_at', new Date().toISOString()) // Only future meetups
+        .gte('start_at', now) // Only future meetups - use explicit variable
         .order('start_at', { ascending: true });
       
-      // Filter by topic if not "הכל"
+      // Apply topic filter if not "הכל"
       if (topic && topic !== "הכל") {
         query = query.eq('topic', topic);
       }
