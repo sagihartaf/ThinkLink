@@ -135,17 +135,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMeetup(insertMeetup: InsertMeetup): Promise<Meetup> {
-    // Backward-compat: some deployments may not yet have the new columns
-    // Remove optional fields that might not exist in the DB schema
-    const { /* eslint-disable @typescript-eslint/no-unused-vars */
-      // @ts-expect-error - these fields may exist in types but not in DB yet
-      placeName, /* @ts-expect-error */ customLocationDetails, ...rest
-    } = (insertMeetup as unknown) as Record<string, unknown>;
-
     const [meetup] = await db
       .insert(meetups)
-      // Only insert known-safe columns until migrations are applied
-      .values(rest as any)
+      .values(insertMeetup as any)
       .returning();
     return meetup;
   }

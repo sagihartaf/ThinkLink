@@ -43,9 +43,7 @@ export function registerRoutes(app: Express): Server {
         ...req.body,
         hostId: req.user!.id
       });
-      // Strip optional fields that may not exist in the DB yet
-      const { placeName, customLocationDetails, ...safeData } = (meetupData as any);
-      const meetup = await storage.createMeetup(safeData);
+      const meetup = await storage.createMeetup(meetupData as any);
       res.status(201).json(meetup);
     } catch (error) {
       if (error instanceof z.ZodError) {

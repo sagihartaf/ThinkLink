@@ -43,6 +43,8 @@ const meetups = pgTable("meetups", {
   description: text("description").notNull(),
   startAt: timestamp("start_at").notNull(),
   location: text("location").notNull(),
+  placeName: text("place_name"),
+  customLocationDetails: text("custom_location_details"),
   capacity: integer("capacity").notNull(),
   icebreaker: text("icebreaker"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -163,6 +165,8 @@ type Meetup = {
   description: string;
   startAt: Date;
   location: string;
+  placeName: string | null;
+  customLocationDetails: string | null;
   capacity: number;
   icebreaker: string | null;
   createdAt: Date;
@@ -757,9 +761,7 @@ app.post("/api/meetups", async (req, res) => {
       ...req.body,
       hostId: req.user!.id
     });
-    // Strip optional fields that may not exist in the DB yet
-    const { placeName, customLocationDetails, ...safeData } = (meetupData as any);
-    const meetup = await storage.createMeetup(safeData);
+    const meetup = await storage.createMeetup(meetupData as any);
     res.status(201).json(meetup);
   } catch (error) {
     if (error instanceof z.ZodError) {
