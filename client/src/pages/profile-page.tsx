@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { UserPen, MessageSquare, LogOut, X, Star } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 const logoPath = "/thinklink-logo.png";
 
 export default function ProfilePage() {
@@ -17,11 +18,13 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  const [profile, setProfile] = useState<{ full_name: string; avatar_url: string | null } | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
-    displayName: user?.displayName || "",
-    photoUrl: user?.photoUrl || ""
+    displayName: "",
+    photoUrl: ""
   });
   const [feedbackForm, setFeedbackForm] = useState({
     rating: 0,
@@ -30,29 +33,88 @@ export default function ProfilePage() {
     includeDiagnostic: false
   });
 
+  // Fetch profile data from Supabase
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching profile:', error);
+          // If profile doesn't exist, create a default one
+          if (error.code === 'PGRST116') {
+            setProfile({ full_name: user.email?.split('@')[0] || 'משתמש', avatar_url: null });
+          }
+        } else {
+          setProfile(data);
+          setEditForm({
+            displayName: data.full_name || '',
+            photoUrl: data.avatar_url || ''
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [user?.id]);
+
+  // Update edit form when profile changes
+  useEffect(() => {
+    if (profile) {
+      setEditForm({
+        displayName: profile.full_name || '',
+        photoUrl: profile.avatar_url || ''
+      });
+    }
+  }, [profile]);
+
   const updateProfileMutation = useMutation({
     mutationFn: async (data: { displayName: string; photoUrl?: string }) => {
-      const response = await fetch("/api/user/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error("Failed to update profile");
-      return response.json();
+      if (!user?.id) throw new Error("User not authenticated");
+      
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          full_name: data.displayName,
+          avatar_url: data.photoUrl || null
+        });
+      
+      if (error) throw error;
+      return { success: true };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      // Refresh profile data
+      if (user?.id) {
+        supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', user.id)
+          .single()
+          .then(({ data }) => {
+            if (data) setProfile(data);
+          });
+      }
       setEditDialogOpen(false);
       toast({
         title: "הפרופיל עודכן בהצלחה",
         description: "השינויים נשמרו במערכת"
       });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "שגיאה בעדכון הפרופיל",
-        description: "אנא נסו שוב מאוחר יותר",
+        description: error.message || "אנא נסו שוב מאוחר יותר",
         variant: "destructive"
       });
     }
@@ -118,19 +180,25 @@ export default function ProfilePage() {
         {/* User Info */}
         <div className="flex flex-col items-center space-y-4">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#8c52ff] to-[#5ce1e6] flex items-center justify-center text-white text-2xl font-bold">
-            {user?.photoUrl ? (
+            {profileLoading ? (
+              <div className="w-full h-full rounded-full bg-gray-200 animate-pulse" />
+            ) : profile?.avatar_url ? (
               <img 
-                src={user.photoUrl} 
-                alt={user.displayName}
+                src={profile.avatar_url} 
+                alt={profile.full_name}
                 className="w-full h-full rounded-full object-cover"
               />
             ) : (
-              user?.displayName.charAt(0).toUpperCase()
+              profile?.full_name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || "👤"
             )}
           </div>
           <div className="text-center">
             <h2 className="text-xl font-bold text-[#1b1b1b]" data-testid="text-display-name">
-              {user?.displayName}
+              {profileLoading ? (
+                <div className="h-6 w-32 bg-gray-200 rounded animate-pulse" />
+              ) : (
+                profile?.full_name || user?.email?.split('@')[0] || 'משתמש'
+              )}
             </h2>
             <p className="text-[#9AA0A6]" data-testid="text-email">
               {user?.email}
@@ -163,7 +231,7 @@ export default function ProfilePage() {
               <form onSubmit={handleEditProfile} className="space-y-6">
                 <div className="flex justify-center">
                   <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#8c52ff] to-[#5ce1e6] flex items-center justify-center text-white text-2xl font-bold">
-                    {editForm.displayName.charAt(0).toUpperCase() || "👤"}
+                    {editForm.displayName.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || "👤"}
                   </div>
                 </div>
                 
