@@ -4,18 +4,11 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(),
-  displayName: text("display_name").notNull(),
-  photoUrl: text("photo_url"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+// Users table removed - now using Supabase auth.users and public.profiles
 
 export const meetups = pgTable("meetups", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  hostId: varchar("host_id").notNull().references(() => users.id),
+  hostId: varchar("host_id").notNull(), // References auth.users(id) - no foreign key constraint
   title: text("title").notNull(),
   topic: text("topic").notNull(),
   description: text("description").notNull(),
@@ -30,7 +23,7 @@ export const meetups = pgTable("meetups", {
 
 export const participations = pgTable("participations", {
   meetupId: varchar("meetup_id").notNull().references(() => meetups.id),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull(), // References auth.users(id) - no foreign key constraint
   status: text("status").notNull().default("joined"),
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
 });
@@ -38,72 +31,23 @@ export const participations = pgTable("participations", {
 export const messages = pgTable("messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   meetupId: varchar("meetup_id").notNull().references(() => meetups.id),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull(), // References auth.users(id) - no foreign key constraint
   text: text("text").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const appFeedback = pgTable("app_feedback", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull(), // References auth.users(id) - no foreign key constraint
   message: text("message").notNull(),
   rating: integer("rating"),
   category: text("category"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Relations
-export const usersRelations = relations(users, ({ many }) => ({
-  hostedMeetups: many(meetups),
-  participations: many(participations),
-  messages: many(messages),
-  feedback: many(appFeedback),
-}));
+// Relations - removed users relations since we now use Supabase auth.users
 
-export const meetupsRelations = relations(meetups, ({ one, many }) => ({
-  host: one(users, {
-    fields: [meetups.hostId],
-    references: [users.id],
-  }),
-  participations: many(participations),
-  messages: many(messages),
-}));
-
-export const participationsRelations = relations(participations, ({ one }) => ({
-  meetup: one(meetups, {
-    fields: [participations.meetupId],
-    references: [meetups.id],
-  }),
-  user: one(users, {
-    fields: [participations.userId],
-    references: [users.id],
-  }),
-}));
-
-export const messagesRelations = relations(messages, ({ one }) => ({
-  meetup: one(meetups, {
-    fields: [messages.meetupId],
-    references: [meetups.id],
-  }),
-  user: one(users, {
-    fields: [messages.userId],
-    references: [users.id],
-  }),
-}));
-
-export const appFeedbackRelations = relations(appFeedback, ({ one }) => ({
-  user: one(users, {
-    fields: [appFeedback.userId],
-    references: [users.id],
-  }),
-}));
-
-// Insert schemas
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
-});
-
+// Insert schemas - removed user schemas since we now use Supabase auth.users
 export const insertMeetupSchema = createInsertSchema(meetups).omit({
   id: true,
   createdAt: true,
@@ -126,8 +70,6 @@ export const insertAppFeedbackSchema = createInsertSchema(appFeedback).omit({
 });
 
 // Types
-export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Meetup = typeof meetups.$inferSelect;
 export type InsertMeetup = z.infer<typeof insertMeetupSchema>;
 export type Participation = typeof participations.$inferSelect;
