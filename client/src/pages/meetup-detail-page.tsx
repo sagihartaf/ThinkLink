@@ -9,19 +9,20 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Share, Edit, Calendar, MapPin, Users, Lightbulb, Send, CalendarPlus, LogOut } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
-import type { Meetup, User, Message, Participation } from "@shared/schema";
+import { supabase } from "@/lib/supabase";
+import type { Meetup, Message, Participation } from "@shared/schema";
 
 interface MeetupWithHost extends Meetup {
-  host: User;
+  host: { id: string; email: string; full_name?: string; avatar_url?: string };
   joined_count?: number;
 }
 
 interface MessageWithUser extends Message {
-  user: User;
+  user: { id: string; email: string; full_name?: string; avatar_url?: string };
 }
 
 interface ParticipationWithUser extends Participation {
-  user: User;
+  user: { id: string; email: string; full_name?: string; avatar_url?: string };
 }
 
 export default function MeetupDetailPage() {
@@ -34,42 +35,115 @@ export default function MeetupDetailPage() {
   const [messageText, setMessageText] = useState("");
 
   const { data: meetup, isLoading: meetupLoading } = useQuery<MeetupWithHost>({
-    queryKey: ["/api/meetups", meetupId],
-    queryFn: async ({ queryKey }) => {
-      const response = await fetch(`${queryKey[0]}/${queryKey[1]}`, {
-        credentials: "include"
-      });
-      if (!response.ok) {
-        if (response.status === 404) throw new Error("Meetup not found");
+    queryKey: ["meetup", meetupId],
+    queryFn: async () => {
+      const { data: meetupData, error: meetupError } = await supabase
+        .from('meetups')
+        .select('*')
+        .eq('id', meetupId)
+        .single();
+      
+      if (meetupError) {
+        if (meetupError.code === 'PGRST116') throw new Error("Meetup not found");
         throw new Error("Failed to fetch meetup");
       }
-      return response.json();
+      
+      // Get host profile data
+      const { data: hostProfile, error: hostError } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url')
+        .eq('id', meetupData.host_id)
+        .single();
+      
+      // Get participation count
+      const { count: joinedCount } = await supabase
+        .from('participations')
+        .select('*', { count: 'exact', head: true })
+        .eq('meetup_id', meetupId)
+        .eq('status', 'joined');
+      
+      return {
+        ...meetupData,
+        host: {
+          id: meetupData.host_id,
+          email: '', // We don't have email in profiles table
+          full_name: hostProfile?.full_name || '',
+          avatar_url: hostProfile?.avatar_url || null
+        },
+        joined_count: joinedCount || 0
+      };
     }
   });
 
   const { data: participants = [] } = useQuery<ParticipationWithUser[]>({
-    queryKey: ["/api/meetups", meetupId, "participants"],
-    queryFn: async ({ queryKey }) => {
-      const response = await fetch(`${queryKey[0]}/${queryKey[1]}/${queryKey[2]}`, {
-        credentials: "include"
-      });
-      if (!response.ok) throw new Error("Failed to fetch participants");
-      return response.json();
+    queryKey: ["meetup-participants", meetupId],
+    queryFn: async () => {
+      const { data: participations, error: participationsError } = await supabase
+        .from('participations')
+        .select('*')
+        .eq('meetup_id', meetupId)
+        .eq('status', 'joined')
+        .order('joined_at', { ascending: true });
+      
+      if (participationsError) throw participationsError;
+      
+      if (!participations || participations.length === 0) return [];
+      
+      // Get user profiles for each participation
+      const userIds = participations.map(p => p.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', userIds);
+      
+      if (profilesError) throw profilesError;
+      
+      // Combine participations with user data
+      return participations.map(participation => ({
+        ...participation,
+        user: {
+          id: participation.user_id,
+          email: '', // We don't have email in profiles table
+          full_name: profiles?.find(p => p.id === participation.user_id)?.full_name || '',
+          avatar_url: profiles?.find(p => p.id === participation.user_id)?.avatar_url || null
+        }
+      }));
     },
     enabled: !!meetup
   });
 
   const { data: messages = [] } = useQuery<MessageWithUser[]>({
-    queryKey: ["/api/meetups", meetupId, "messages"],
-    queryFn: async ({ queryKey }) => {
-      const response = await fetch(`${queryKey[0]}/${queryKey[1]}/${queryKey[2]}`, {
-        credentials: "include"
-      });
-      if (!response.ok) {
-        if (response.status === 403) return [];
-        throw new Error("Failed to fetch messages");
-      }
-      return response.json();
+    queryKey: ["meetup-messages", meetupId],
+    queryFn: async () => {
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('meetup_id', meetupId)
+        .order('created_at', { ascending: true });
+      
+      if (messagesError) throw messagesError;
+      
+      if (!messagesData || messagesData.length === 0) return [];
+      
+      // Get user profiles for each message
+      const userIds = messagesData.map(m => m.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', userIds);
+      
+      if (profilesError) throw profilesError;
+      
+      // Combine messages with user data
+      return messagesData.map(message => ({
+        ...message,
+        user: {
+          id: message.user_id,
+          email: '', // We don't have email in profiles table
+          full_name: profiles?.find(p => p.id === message.user_id)?.full_name || '',
+          avatar_url: profiles?.find(p => p.id === message.user_id)?.avatar_url || null
+        }
+      }));
     },
     enabled: !!meetup && !!user,
     refetchInterval: 20000 // Poll every 20 seconds
@@ -77,21 +151,50 @@ export default function MeetupDetailPage() {
 
   const joinMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/meetups/${meetupId}/join`, {
-        method: "POST",
-        credentials: "include"
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message);
+      if (!user?.id) throw new Error("User not authenticated");
+      
+      // Check if already joined
+      const { data: existingParticipation } = await supabase
+        .from('participations')
+        .select('*')
+        .eq('meetup_id', meetupId)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (existingParticipation) {
+        throw new Error("Already joined this meetup");
       }
-      return response.json();
+      
+      // Check capacity
+      const { count: currentCount } = await supabase
+        .from('participations')
+        .select('*', { count: 'exact', head: true })
+        .eq('meetup_id', meetupId)
+        .eq('status', 'joined');
+      
+      if (meetup && currentCount && currentCount >= meetup.capacity) {
+        throw new Error("Meetup is full");
+      }
+      
+      // Join the meetup
+      const { data: participation, error } = await supabase
+        .from('participations')
+        .insert({
+          meetup_id: meetupId,
+          user_id: user.id,
+          status: 'joined'
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return participation;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/meetups", meetupId, "participants"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user", "joined-meetups"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/meetups", meetupId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/meetups"] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meetup-participants", meetupId] });
+      queryClient.invalidateQueries({ queryKey: ["joined-meetups", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["meetup", meetupId] });
+      queryClient.invalidateQueries({ queryKey: ["meetups"] });
       toast({
         title: "הצטרפת למפגש בהצלחה!",
         description: "תוכלו לראות את המפגש ברשימת המפגשים שלכם"
@@ -108,21 +211,22 @@ export default function MeetupDetailPage() {
 
   const leaveMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/meetups/${meetupId}/leave`, {
-        method: "DELETE",
-        credentials: "include"
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message);
-      }
-      return response.json();
+      if (!user?.id) throw new Error("User not authenticated");
+      
+      const { error } = await supabase
+        .from('participations')
+        .delete()
+        .eq('meetup_id', meetupId)
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      return { success: true };
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/meetups", meetupId, "participants"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user", "joined-meetups"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/meetups", meetupId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/meetups"] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meetup-participants", meetupId] });
+      queryClient.invalidateQueries({ queryKey: ["joined-meetups", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["meetup", meetupId] });
+      queryClient.invalidateQueries({ queryKey: ["meetups"] });
       toast({
         title: "עזבת את המפגש",
         description: "הסרתם את עצמכם מרשימת המשתתפים"
@@ -139,17 +243,23 @@ export default function MeetupDetailPage() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (text: string) => {
-      const response = await fetch(`/api/meetups/${meetupId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ text })
-      });
-      if (!response.ok) throw new Error("Failed to send message");
-      return response.json();
+      if (!user?.id) throw new Error("User not authenticated");
+      
+      const { data: message, error } = await supabase
+        .from('messages')
+        .insert({
+          meetup_id: meetupId,
+          user_id: user.id,
+          text: text
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return message;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/meetups", meetupId, "messages"] });
+      queryClient.invalidateQueries({ queryKey: ["meetup-messages", meetupId] });
       setMessageText("");
     },
     onError: () => {
@@ -171,7 +281,7 @@ export default function MeetupDetailPage() {
   const handleShare = async () => {
     const shareData = {
       title: meetup.title,
-      text: `${meetup.title}\n\n${format(new Date(meetup.startAt), "dd MMMM yyyy, HH:mm", { locale: he })}\n${meetup.location}\n\nהצטרפו אלינו ב-ThinkLink!`,
+      text: `${meetup.title}\n\n${format(new Date(meetup.start_at), "dd MMMM yyyy, HH:mm", { locale: he })}\n${meetup.location}\n\nהצטרפו אלינו ב-ThinkLink!`,
       url: window.location.href
     };
 
@@ -197,7 +307,7 @@ export default function MeetupDetailPage() {
   };
 
   const handleAddToCalendar = () => {
-    const startDate = new Date(meetup.startAt);
+    const startDate = new Date(meetup.start_at);
     const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours duration
     
     // Format dates for ICS (YYYYMMDDTHHMMSSZ)
@@ -359,7 +469,7 @@ export default function MeetupDetailPage() {
             <div>
               <div className="text-sm text-[#9AA0A6]">תאריך ושעה</div>
               <div className="font-medium text-[#1b1b1b]" data-testid="text-start-time">
-                {format(new Date(meetup.startAt), "dd MMMM yyyy, HH:mm", { locale: he })}
+                {format(new Date(meetup.start_at), "dd MMMM yyyy, HH:mm", { locale: he })}
               </div>
             </div>
           </div>

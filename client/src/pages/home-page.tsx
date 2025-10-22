@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { MeetupCard } from "@/components/meetup-card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 const logoPath = "/thinklink-logo.png";
 import type { Meetup } from "@shared/schema";
 
@@ -17,14 +18,25 @@ export default function HomePage() {
   const [selectedTopic, setSelectedTopic] = useState("הכל");
 
   const { data: meetups = [], isLoading } = useQuery<(Meetup & { joined_count?: number })[]>({
-    queryKey: ["/api/meetups", selectedTopic === "הכל" ? "" : selectedTopic],
+    queryKey: ["meetups", selectedTopic === "הכל" ? "" : selectedTopic],
     queryFn: async ({ queryKey }) => {
-      const [url, topic] = queryKey as [string, string];
-      const response = await fetch(topic ? `${url}?topic=${encodeURIComponent(topic)}` : url, {
-        credentials: "include"
-      });
-      if (!response.ok) throw new Error("Failed to fetch meetups");
-      return response.json();
+      const [, topic] = queryKey as [string, string];
+      
+      let query = supabase
+        .from('meetups')
+        .select('*')
+        .gte('start_at', new Date().toISOString()) // Only future meetups
+        .order('start_at', { ascending: true });
+      
+      // Filter by topic if not "הכל"
+      if (topic && topic !== "הכל") {
+        query = query.eq('topic', topic);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      return data || [];
     }
   });
 

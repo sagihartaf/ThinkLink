@@ -4,30 +4,62 @@ import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { MeetupCard } from "@/components/meetup-card";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/hooks/use-auth";
 import type { Meetup } from "@shared/schema";
 
 export default function MyEventsPage() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"joined" | "hosting">("joined");
 
   const { data: joinedMeetups = [], isLoading: joinedLoading } = useQuery<(Meetup & { joined_count?: number })[]>({
-    queryKey: ["/api/user/joined-meetups"],
-    queryFn: async ({ queryKey }) => {
-      const response = await fetch(queryKey[0] as string, { credentials: "include" });
-      if (!response.ok) throw new Error("Failed to fetch joined meetups");
-      return response.json();
+    queryKey: ["joined-meetups", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      // Get participations for this user
+      const { data: participations, error: participationsError } = await supabase
+        .from('participations')
+        .select('meetup_id')
+        .eq('user_id', user.id)
+        .eq('status', 'joined');
+      
+      if (participationsError) throw participationsError;
+      
+      if (!participations || participations.length === 0) return [];
+      
+      // Get meetups for these participations
+      const meetupIds = participations.map(p => p.meetup_id);
+      const { data: meetups, error: meetupsError } = await supabase
+        .from('meetups')
+        .select('*')
+        .in('id', meetupIds)
+        .gte('start_at', new Date().toISOString()) // Only future meetups
+        .order('start_at', { ascending: true });
+      
+      if (meetupsError) throw meetupsError;
+      return meetups || [];
     },
-    enabled: activeTab === "joined"
+    enabled: activeTab === "joined" && !!user?.id
   });
 
   const { data: hostedMeetups = [], isLoading: hostedLoading } = useQuery<(Meetup & { joined_count?: number })[]>({
-    queryKey: ["/api/user/hosted-meetups"],
-    queryFn: async ({ queryKey }) => {
-      const response = await fetch(queryKey[0] as string, { credentials: "include" });
-      if (!response.ok) throw new Error("Failed to fetch hosted meetups");
-      return response.json();
+    queryKey: ["hosted-meetups", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data: meetups, error } = await supabase
+        .from('meetups')
+        .select('*')
+        .eq('host_id', user.id)
+        .gte('start_at', new Date().toISOString()) // Only future meetups
+        .order('start_at', { ascending: true });
+      
+      if (error) throw error;
+      return meetups || [];
     },
-    enabled: activeTab === "hosting"
+    enabled: activeTab === "hosting" && !!user?.id
   });
 
   const currentMeetups = activeTab === "joined" ? joinedMeetups : hostedMeetups;
