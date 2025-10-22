@@ -21,9 +21,6 @@ export const meetups = pgTable("meetups", {
   description: text("description").notNull(),
   startAt: timestamp("start_at").notNull(),
   location: text("location").notNull(),
-  // Optional fields for custom location handling
-  placeName: text("place_name"),
-  customLocationDetails: text("custom_location_details"),
   capacity: integer("capacity").notNull(),
   icebreaker: text("icebreaker"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
