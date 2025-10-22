@@ -22,14 +22,11 @@ export default function HomePage() {
     queryFn: async ({ queryKey }) => {
       const [, topic] = queryKey as [string, string];
       
-      // Get current time in ISO format for precise filtering
-      const now = new Date().toISOString();
-      
       // Build the query step by step to ensure proper filtering
       let query = supabase
         .from('meetups')
         .select('*')
-        .gte('start_at', now) // Only future meetups - use explicit variable
+        .gte('start_at', 'now()') // Use PostgreSQL's now() function for timezone-aware filtering
         .order('start_at', { ascending: true });
       
       // Apply topic filter if not "הכל"
