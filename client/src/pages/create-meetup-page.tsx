@@ -132,9 +132,9 @@ export default function CreateMeetupPage() {
       description: formData.description,
       startAt: new Date(formData.startAt).toISOString(),
       location: formData.location,
-      ...(selectedPlaceData?.place ? { placeName: selectedPlaceData.place } : {}),
+      ...(selectedPlaceData?.place ? { place_name: selectedPlaceData.place } : {}),
       ...(selectedPlaceData?.place === "מקום אחר (הקלדה ידנית)" && customLocationText.trim()
-        ? { customLocationDetails: customLocationText.trim() }
+        ? { custom_location_details: customLocationText.trim() }
         : {}),
       capacity: parseInt(formData.capacity),
       icebreaker: formData.icebreaker || null
