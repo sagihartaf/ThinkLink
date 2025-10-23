@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -822,30 +822,29 @@ export default function MeetupDetailPage() {
           ) : (
             <div className="flex flex-wrap gap-3" data-testid="list-participants">
               {participants.map((participant) => (
-                <div 
-                  key={participant.user_id}
-                  className="flex items-center gap-2 bg-white rounded-full pr-1 pl-3 py-1 border border-gray-200"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8c52ff] to-[#5ce1e6] flex items-center justify-center text-white text-sm font-bold overflow-hidden">
-                    {participant.user?.avatar_url ? (
-                      <img 
-                        src={participant.user.avatar_url} 
-                        alt={participant.user.full_name || 'משתמש'}
-                        className="w-full h-full rounded-full object-cover object-top"
-                      />
-                    ) : (
-                      (participant.user?.full_name || 'משתמש').charAt(0).toUpperCase()
+                <Link key={participant.user_id} href={`/users/${participant.user_id}`}>
+                  <div className="flex items-center gap-2 bg-white rounded-full pr-1 pl-3 py-1 border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8c52ff] to-[#5ce1e6] flex items-center justify-center text-white text-sm font-bold overflow-hidden">
+                      {participant.user?.avatar_url ? (
+                        <img 
+                          src={participant.user.avatar_url} 
+                          alt={participant.user.full_name || 'משתמש'}
+                          className="w-full h-full rounded-full object-cover object-top"
+                        />
+                      ) : (
+                        (participant.user?.full_name || 'משתמש').charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <span className="text-sm font-medium text-[#1b1b1b]">
+                      {participant.user?.full_name || 'משתמש'}
+                    </span>
+                    {participant.user_id === meetup.host_id && (
+                      <Badge variant="secondary" className="text-xs bg-[#18cb96]/10 text-[#18cb96]">
+                        מארח/ת
+                      </Badge>
                     )}
                   </div>
-                  <span className="text-sm font-medium text-[#1b1b1b]">
-                    {participant.user?.full_name || 'משתמש'}
-                  </span>
-                  {participant.user_id === meetup.host_id && (
-                    <Badge variant="secondary" className="text-xs bg-[#18cb96]/10 text-[#18cb96]">
-                      מארח/ת
-                    </Badge>
-                  )}
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -893,22 +892,26 @@ export default function MeetupDetailPage() {
               ) : (
                 messages.map((message) => (
                   <div key={message.id} className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8c52ff] to-[#5ce1e6] flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
-                      {message.user.avatar_url ? (
-                        <img 
-                          src={message.user.avatar_url} 
-                          alt={message.user.full_name || 'משתמש'}
-                          className="w-full h-full rounded-full object-cover object-top"
-                        />
-                      ) : (
-                        (message.user.full_name || 'משתמש').charAt(0).toUpperCase()
-                      )}
-                    </div>
+                    <Link href={`/users/${message.user.id}`}>
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8c52ff] to-[#5ce1e6] flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden hover:opacity-80 transition-opacity cursor-pointer">
+                        {message.user.avatar_url ? (
+                          <img 
+                            src={message.user.avatar_url} 
+                            alt={message.user.full_name || 'משתמש'}
+                            className="w-full h-full rounded-full object-cover object-top"
+                          />
+                        ) : (
+                          (message.user.full_name || 'משתמש').charAt(0).toUpperCase()
+                        )}
+                      </div>
+                    </Link>
                     <div className="flex-1 space-y-1">
                       <div className="flex items-baseline gap-2">
-                        <span className="font-medium text-sm text-[#1b1b1b]">
-                          {message.user.full_name || 'משתמש'}
-                        </span>
+                        <Link href={`/users/${message.user.id}`}>
+                          <span className="font-medium text-sm text-[#1b1b1b] hover:text-[#8c52ff] transition-colors cursor-pointer">
+                            {message.user.full_name || 'משתמש'}
+                          </span>
+                        </Link>
                         <span className="text-xs text-[#9AA0A6]">
                           {message.created_at ? format(new Date(message.created_at), "HH:mm") : 'טוען...'}
                         </span>

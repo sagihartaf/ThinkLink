@@ -13,6 +13,7 @@ import CreateMeetupPage from "@/pages/create-meetup-page";
 import MeetupDetailPage from "@/pages/meetup-detail-page";
 import MyEventsPage from "@/pages/my-events-page";
 import ProfilePage from "@/pages/profile-page";
+import UserProfilePage from "@/pages/user-profile-page";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -26,6 +27,7 @@ function Router() {
       <ProtectedRoute path="/meetup/:id" component={MeetupDetailPage} />
       <ProtectedRoute path="/my-events" component={MyEventsPage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
+      <ProtectedRoute path="/users/:id" component={UserProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );
