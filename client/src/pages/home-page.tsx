@@ -5,7 +5,7 @@ import { useLocation } from "wouter";
 import { BottomNav } from "@/components/bottom-nav";
 import { MeetupCard } from "@/components/meetup-card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, ChevronLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 const logoPath = "/thinklink-logo.png";
 import type { Meetup } from "@shared/schema";
@@ -92,28 +92,44 @@ export default function HomePage() {
             </span>
           </h1>
           <p className="text-[#9AA0A6] text-sm">הצטרפו לשיחות שמעניינות אתכם</p>
+          
+          {/* Guest Login Button */}
+          {!user && (
+            <div className="mt-4">
+              <Button
+                onClick={() => setLocation('/auth')}
+                className="bg-gradient-to-r from-[#8c52ff] to-[#5ce1e6] hover:opacity-90 text-white font-semibold px-6 py-2"
+                data-testid="button-guest-login"
+              >
+                התחברות / הרשמה
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Topic Filters */}
       <div className="px-6 py-4 bg-white border-b border-gray-200">
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2">
-          {topics.map((topic) => (
-            <Button
-              key={topic}
-              variant="secondary"
-              size="sm"
-              onClick={() => setSelectedTopic(topic)}
-              className={`whitespace-nowrap font-medium text-sm ${
-                selectedTopic === topic
-                  ? "bg-[#4A90E2] text-[#f4f9ff] hover:bg-[#4A90E2]/90"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-              data-testid={`button-topic-${topic}`}
-            >
-              {topic}
-            </Button>
-          ))}
+        <div className="flex items-center gap-2">
+          <ChevronLeft className="h-4 w-4 text-[#9AA0A6] flex-shrink-0" />
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 flex-1">
+            {topics.map((topic) => (
+              <Button
+                key={topic}
+                variant="secondary"
+                size="sm"
+                onClick={() => setSelectedTopic(topic)}
+                className={`whitespace-nowrap font-medium text-sm ${
+                  selectedTopic === topic
+                    ? "bg-[#4A90E2] text-[#f4f9ff] hover:bg-[#4A90E2]/90"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+                data-testid={`button-topic-${topic}`}
+              >
+                {topic}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
