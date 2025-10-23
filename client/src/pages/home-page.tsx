@@ -8,50 +8,27 @@ import { Button } from "@/components/ui/button";
 import { Plus, ChevronLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 const logoPath = "/thinklink-logo.png";
+import type { Meetup } from "@shared/schema";
 
 const topics = ["הכל", "טכנולוגיה", "תרבות", "פילוסופיה", "פסיכולוגיה", "ספורט", "מוזיקה", "פיננסים", "אחר"];
-
-// Type definition for the RPC function response
-type MeetupWithParticipants = {
-  id: string;
-  host_id: string;
-  title: string;
-  description: string;
-  topic: string;
-  place_name: string | null;
-  custom_location_details: string | null;
-  address: string | null;
-  start_at: string;
-  max_participants: number | null;
-  created_at: string;
-  participant_count: number;
-};
 
 export default function HomePage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedTopic, setSelectedTopic] = useState("הכל");
 
-  const { data: meetups = [], isLoading } = useQuery<MeetupWithParticipants[]>({
+  const { data: meetups = [], isLoading } = useQuery<(Meetup & { joined_count?: number })[]>({
     queryKey: ["meetups", selectedTopic === "הכל" ? "" : selectedTopic],
     queryFn: async ({ queryKey }) => {
       const [, topic] = queryKey as [string, string];
       
       // Prepare parameters for the RPC function
-      // When topic is empty string (הכל), pass null to get all meetups
-      const rpcParams = topic && topic !== "" ? { p_topic: topic } : { p_topic: null };
-      
-      console.log("🔍 RPC call:", { topic, rpcParams });
-      console.log("🔧 Supabase client check:", { 
-        hasSupabase: !!supabase,
-        hasRpc: typeof supabase.rpc === 'function'
-      });
+      // When topic is empty string (הכל), pass empty object to get all meetups
+      const rpcParams = topic && topic !== "" ? { p_topic: topic } : {};
       
       // Call the RPC function for both guests and authenticated users
       const { data, error } = await supabase
         .rpc('get_future_meetups', rpcParams);
-      
-      console.log("📊 RPC response:", { data: data?.length || 0, error });
       
       if (error) throw error;
       return data || [];
