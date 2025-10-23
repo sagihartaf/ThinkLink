@@ -4,26 +4,110 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
+import { Loader2 } from "lucide-react";
 
 const logoPath = "/thinklink-logo.png";
 
 export default function CompleteProfilePage() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   
   const [formData, setFormData] = useState({
     fullName: "",
     profilePictureUrl: "",
     birthdate: ""
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateFormData = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const calculateAge = (birthdate: string): number => {
+    const today = new Date();
+    const birth = new Date(birthdate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    
+    return age;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Add submission logic later
-    console.log("Form submitted:", formData);
+    setIsSubmitting(true);
+
+    try {
+      // Age validation
+      const age = calculateAge(formData.birthdate);
+      if (age < 18) {
+        toast({
+          title: "ההרשמה מותרת מגיל 18 ומעלה בלבד",
+          description: "אנא בדקו את תאריך הלידה שהזנתם",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast({
+          title: "שגיאה באימות המשתמש",
+          description: "אנא התחברו מחדש",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Prepare profile data with snake_case keys
+      const profileData = {
+        id: user.id,
+        full_name: formData.fullName,
+        avatar_url: formData.profilePictureUrl || null,
+        birthdate: formData.birthdate
+      };
+
+      // Save profile data
+      const { error: saveError } = await supabase
+        .from('profiles')
+        .upsert(profileData);
+
+      if (saveError) {
+        console.error('Error saving profile:', saveError);
+        toast({
+          title: "שגיאה בשמירת הפרופיל",
+          description: "אנא נסו שוב מאוחר יותר",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Success - navigate to homepage
+      toast({
+        title: "הפרופיל נשמר בהצלחה!",
+        description: "ברוכים הבאים ל-ThinkLink"
+      });
+      
+      setLocation("/");
+      
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      toast({
+        title: "שגיאה לא צפויה",
+        description: "אנא נסו שוב מאוחר יותר",
+        variant: "destructive"
+      });
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -99,10 +183,18 @@ export default function CompleteProfilePage() {
             {/* Submit Button */}
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-[#8c52ff] to-[#5ce1e6] hover:opacity-90 text-white font-semibold py-3 mt-8"
+              disabled={isSubmitting}
+              className="w-full bg-gradient-to-r from-[#8c52ff] to-[#5ce1e6] hover:opacity-90 text-white font-semibold py-3 mt-8 disabled:opacity-50"
               data-testid="button-submit-profile"
             >
-              שמירה והמשך לאפליקציה
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  שומר...
+                </>
+              ) : (
+                "שמירה והמשך לאפליקציה"
+              )}
             </Button>
           </form>
         </CardContent>
