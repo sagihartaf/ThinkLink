@@ -199,7 +199,7 @@ export default function ProfilePage() {
               <img 
                 src={profile.avatar_url} 
                 alt={profile.full_name}
-                className="w-full h-full rounded-full object-cover"
+                className="w-full h-full rounded-full object-cover object-top"
               />
             ) : (
               profile?.full_name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || "👤"
