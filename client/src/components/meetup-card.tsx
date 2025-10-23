@@ -1,11 +1,11 @@
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Users } from "lucide-react";
+import { Calendar, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
 import type { Meetup } from "@shared/schema";
 
 interface MeetupCardProps {
-  meetup: Meetup & { joined_count?: number };
+  meetup: Meetup;
   showHostBadge?: boolean;
   onClick: () => void;
 }
@@ -62,12 +62,6 @@ export function MeetupCard({ meetup, showHostBadge = false, onClick }: MeetupCar
               {meetup.place_name === "מקום אחר (הקלדה ידנית)" && meetup.custom_location_details
                 ? meetup.custom_location_details
                 : meetup.location}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 text-[#18cb96] font-medium">
-            <Users className="h-4 w-4" />
-            <span data-testid="text-capacity">
-              {meetup.joined_count ?? 0}/{meetup.capacity}
             </span>
           </div>
         </div>
