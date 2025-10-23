@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
 import AuthPage from "@/pages/auth-page";
+import CompleteProfilePage from "@/pages/complete-profile-page";
 import HomePage from "@/pages/home-page";
 import CreateMeetupPage from "@/pages/create-meetup-page";
 import MeetupDetailPage from "@/pages/meetup-detail-page";
@@ -17,6 +18,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+      <ProtectedRoute path="/complete-profile" component={CompleteProfilePage} />
       <Route path="/" component={HomePage} />
       <Route path="/home" component={HomePage} />
       <ProtectedRoute path="/create-meetup" component={CreateMeetupPage} />
