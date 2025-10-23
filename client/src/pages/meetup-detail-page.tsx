@@ -826,8 +826,16 @@ export default function MeetupDetailPage() {
                   key={participant.user_id}
                   className="flex items-center gap-2 bg-white rounded-full pr-1 pl-3 py-1 border border-gray-200"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8c52ff] to-[#5ce1e6] flex items-center justify-center text-white text-sm font-bold">
-                    {(participant.user?.full_name || 'משתמש').charAt(0).toUpperCase()}
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8c52ff] to-[#5ce1e6] flex items-center justify-center text-white text-sm font-bold overflow-hidden">
+                    {participant.user?.avatar_url ? (
+                      <img 
+                        src={participant.user.avatar_url} 
+                        alt={participant.user.full_name || 'משתמש'}
+                        className="w-full h-full rounded-full object-cover object-top"
+                      />
+                    ) : (
+                      (participant.user?.full_name || 'משתמש').charAt(0).toUpperCase()
+                    )}
                   </div>
                   <span className="text-sm font-medium text-[#1b1b1b]">
                     {participant.user?.full_name || 'משתמש'}
@@ -885,8 +893,16 @@ export default function MeetupDetailPage() {
               ) : (
                 messages.map((message) => (
                   <div key={message.id} className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8c52ff] to-[#5ce1e6] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                      {(message.user.full_name || 'משתמש').charAt(0).toUpperCase()}
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8c52ff] to-[#5ce1e6] flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
+                      {message.user.avatar_url ? (
+                        <img 
+                          src={message.user.avatar_url} 
+                          alt={message.user.full_name || 'משתמש'}
+                          className="w-full h-full rounded-full object-cover object-top"
+                        />
+                      ) : (
+                        (message.user.full_name || 'משתמש').charAt(0).toUpperCase()
+                      )}
                     </div>
                     <div className="flex-1 space-y-1">
                       <div className="flex items-baseline gap-2">
