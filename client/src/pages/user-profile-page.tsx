@@ -9,6 +9,12 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 
+// Helper function to validate UUID
+const isValidUUID = (uuid: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+};
+
 export default function UserProfilePage() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
@@ -26,6 +32,11 @@ export default function UserProfilePage() {
     queryFn: async () => {
       if (!id) throw new Error("User ID is required");
       
+      // Validate UUID format before making the query
+      if (!isValidUUID(id)) {
+        throw new Error("מזהה משתמש לא תקין");
+      }
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url, instagram_url, birthdate')
@@ -41,7 +52,7 @@ export default function UserProfilePage() {
       
       return data;
     },
-    enabled: !!id
+    enabled: !!id && isValidUUID(id)
   });
 
   useEffect(() => {
