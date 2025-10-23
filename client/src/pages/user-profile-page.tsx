@@ -24,6 +24,8 @@ export default function UserProfilePage() {
     avatar_url: string | null;
     instagram_url: string | null;
     birthdate: string | null;
+    about_me: string | null;
+    interests: string[] | null;
   } | null>(null);
 
   // Fetch profile data
@@ -39,7 +41,7 @@ export default function UserProfilePage() {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url, instagram_url, birthdate')
+        .select('id, full_name, avatar_url, instagram_url, birthdate, about_me, interests')
         .eq('id', id)
         .single();
       
@@ -170,6 +172,37 @@ export default function UserProfilePage() {
                   <span className="text-sm">אינסטגרם</span>
                 </a>
               </div>
+            )}
+          </div>
+        </Card>
+
+        {/* About Me Section */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-[#1b1b1b] mb-4">קצת עליי</h3>
+          <div className="text-[#1b1b1b] leading-relaxed">
+            {profile.about_me ? (
+              <p>{profile.about_me}</p>
+            ) : (
+              <p className="text-[#9AA0A6] italic">אין עדיין מידע...</p>
+            )}
+          </div>
+        </Card>
+
+        {/* Interests Section */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-[#1b1b1b] mb-4">תחומי עניין</h3>
+          <div className="flex flex-wrap gap-2">
+            {profile.interests && profile.interests.length > 0 ? (
+              profile.interests.map((interest, index) => (
+                <span
+                  key={index}
+                  className="px-3 py-1 bg-gradient-to-r from-[#8c52ff] to-[#5ce1e6] text-white text-sm rounded-full font-medium"
+                >
+                  {interest}
+                </span>
+              ))
+            ) : (
+              <p className="text-[#9AA0A6] italic">אין עדיין תחומי עניין...</p>
             )}
           </div>
         </Card>
