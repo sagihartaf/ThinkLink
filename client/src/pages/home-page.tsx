@@ -42,6 +42,10 @@ export default function HomePage() {
       const rpcParams = topic && topic !== "" ? { p_topic: topic } : { p_topic: null };
       
       console.log("🔍 RPC call:", { topic, rpcParams });
+      console.log("🔧 Supabase client check:", { 
+        hasSupabase: !!supabase,
+        hasRpc: typeof supabase.rpc === 'function'
+      });
       
       // Call the RPC function for both guests and authenticated users
       const { data, error } = await supabase
