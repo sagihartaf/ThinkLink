@@ -8,16 +8,31 @@ import { Button } from "@/components/ui/button";
 import { Plus, ChevronLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 const logoPath = "/thinklink-logo.png";
-import type { Meetup } from "@shared/schema";
 
 const topics = ["הכל", "טכנולוגיה", "תרבות", "פילוסופיה", "פסיכולוגיה", "ספורט", "מוזיקה", "פיננסים", "אחר"];
+
+// Type definition for the RPC function response
+type MeetupWithParticipants = {
+  id: string;
+  host_id: string;
+  title: string;
+  description: string;
+  topic: string;
+  place_name: string | null;
+  custom_location_details: string | null;
+  address: string | null;
+  start_at: string;
+  max_participants: number | null;
+  created_at: string;
+  participant_count: number;
+};
 
 export default function HomePage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedTopic, setSelectedTopic] = useState("הכל");
 
-  const { data: meetups = [], isLoading } = useQuery<(Meetup & { joined_count?: number; participant_count?: number; max_participants?: number })[]>({
+  const { data: meetups = [], isLoading } = useQuery<MeetupWithParticipants[]>({
     queryKey: ["meetups", selectedTopic === "הכל" ? "" : selectedTopic],
     queryFn: async ({ queryKey }) => {
       const [, topic] = queryKey as [string, string];
