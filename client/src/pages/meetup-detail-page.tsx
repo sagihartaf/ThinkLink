@@ -6,7 +6,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Share, Edit, Calendar, MapPin, Users, Lightbulb, Send, CalendarPlus, LogOut } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowRight, Share, Edit, Calendar, MapPin, Users, Lightbulb, Send, CalendarPlus, LogOut, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
@@ -33,6 +37,46 @@ export default function MeetupDetailPage() {
   
   const meetupId = location.split("/").pop()!;
   const [messageText, setMessageText] = useState("");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    topic: "",
+    title: "",
+    description: "",
+    startAt: "",
+    location: "",
+    capacity: "",
+    icebreaker: "",
+    selectedPlace: "",
+    customLocationText: ""
+  });
+
+  // Places data for edit form
+  const places = [
+    { area: "אחר", address: "לתיאום משותף", place: "מקום אחר (הקלדה ידנית)" },
+    { area: "שכונה ד׳", address: "אלכסנדר ינאי 14", place: "בנג׳י" },
+    { area: "שכונה ד׳", address: "דרך מצדה 6", place: "רוזה בר" },
+    { area: "שכונה ד׳", address: "שמעון בר גיורא 29", place: "בר גיורא" },
+    { area: "שכונה ג׳", address: "התקווה 8", place: "ברבסבא" },
+    { area: "שכונה ב׳", address: "מרכז חן ביאליק 26", place: "גיזה בר" },
+    { area: "שכונה ב׳", address: "יעקב כהן 12", place: "רוסטרס" },
+    { area: "שכונה ב׳", address: "שמעוני 2", place: "גוסטה פיצה" },
+    { area: "שכונה ב׳", address: "גרץ 7", place: "קפה רגע (בפארק הסופרים)" },
+    { area: "רמות", address: "האנרגיה 77", place: "ג׳מס באר שבע" },
+    { area: "העיר העתיקה", address: "החלוץ 29", place: "בית הבירה" },
+    { area: "העיר העתיקה", address: "ההסתדרות 39", place: "פרלה (בר שכונתי)" },
+    { area: "הבלוק", address: "ראובן רובין 3", place: "או לה לה" },
+    { area: "הבלוק", address: "ראובן רובין 7", place: "טינטו" },
+    { area: "דרך מצדה", address: "מצדה 39", place: "נאנו בר" },
+    { area: "דרך מצדה", address: "מצדה 31", place: "מצדה 31" },
+    { area: "דרך מצדה", address: "מצדה 17", place: "פרינדס בר" },
+    { area: "אנדרטת חטיבת הנגב", address: "מעלה החטיבה 1", place: "הדבשת, עגלת קפה" }
+  ];
+
+  const capacities = [
+    { value: 5, label: "5 משתתפים" },
+    { value: 10, label: "10 משתתפים" },
+    { value: 15, label: "15 משתתפים" }
+  ];
 
   const { data: meetup, isLoading: meetupLoading } = useQuery<MeetupWithHost>({
     queryKey: ["meetup", meetupId],
@@ -271,6 +315,95 @@ export default function MeetupDetailPage() {
     }
   });
 
+  // Populate edit form when meetup data loads
+  useEffect(() => {
+    if (meetup) {
+      // Convert start_at to datetime-local format (remove seconds and timezone)
+      const startAtFormatted = meetup.start_at ? meetup.start_at.slice(0, 16) : "";
+      
+      // Find selected place index
+      const selectedPlaceIndex = meetup.place_name ? 
+        places.findIndex(p => p.place === meetup.place_name) : -1;
+      
+      setEditFormData({
+        topic: meetup.topic || "",
+        title: meetup.title || "",
+        description: meetup.description || "",
+        startAt: startAtFormatted,
+        location: meetup.location || "",
+        capacity: meetup.capacity?.toString() || "",
+        icebreaker: meetup.icebreaker || "",
+        selectedPlace: selectedPlaceIndex >= 0 ? selectedPlaceIndex.toString() : "",
+        customLocationText: meetup.custom_location_details || ""
+      });
+    }
+  }, [meetup]);
+
+  const updateMeetupMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { error } = await supabase
+        .from('meetups')
+        .update({
+          topic: data.topic,
+          title: data.title,
+          description: data.description,
+          start_at: data.startAt + ':00', // Convert to naive timestamp
+          location: data.location,
+          ...(data.place_name ? { place_name: data.place_name } : {}),
+          ...(data.custom_location_details ? { custom_location_details: data.custom_location_details } : {}),
+          capacity: parseInt(data.capacity),
+          icebreaker: data.icebreaker || null
+        })
+        .eq('id', meetupId);
+      
+      if (error) throw error;
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meetup", meetupId] });
+      queryClient.invalidateQueries({ queryKey: ["meetups"] });
+      setEditDialogOpen(false);
+      toast({
+        title: "המפגש עודכן בהצלחה!",
+        description: "השינויים נשמרו"
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "שגיאה בעדכון המפגש",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const deleteMeetupMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('meetups')
+        .delete()
+        .eq('id', meetupId);
+      
+      if (error) throw error;
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meetups"] });
+      toast({
+        title: "המפגש נמחק בהצלחה",
+        description: "המפגש הוסר מהמערכת"
+      });
+      setLocation('/home');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "שגיאה במחיקת המפגש",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (messageText.trim()) {
@@ -385,6 +518,39 @@ export default function MeetupDetailPage() {
     });
   };
 
+  const handleDeleteMeetup = () => {
+    const confirmed = window.confirm("האם אתה בטוח שברצונך למחוק את המפגש? אין דרך חזרה.");
+    if (confirmed) {
+      deleteMeetupMutation.mutate();
+    }
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const selectedPlaceData = editFormData.selectedPlace !== "" ? places[parseInt(editFormData.selectedPlace)] : undefined;
+    
+    const updateData = {
+      topic: editFormData.topic,
+      title: editFormData.title,
+      description: editFormData.description,
+      startAt: editFormData.startAt,
+      location: editFormData.location,
+      ...(selectedPlaceData?.place ? { place_name: selectedPlaceData.place } : {}),
+      ...(selectedPlaceData?.place === "מקום אחר (הקלדה ידנית)" && editFormData.customLocationText.trim()
+        ? { custom_location_details: editFormData.customLocationText.trim() }
+        : {}),
+      capacity: editFormData.capacity,
+      icebreaker: editFormData.icebreaker || null
+    };
+    
+    updateMeetupMutation.mutate(updateData);
+  };
+
+  const updateEditFormData = (field: string, value: string) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   const isHost = meetup?.host_id === user?.id;
   const isParticipant = participants.some(p => p.user_id === user?.id);
   const canViewDiscussion = isHost || isParticipant;
@@ -440,9 +606,138 @@ export default function MeetupDetailPage() {
           <CalendarPlus className="h-5 w-5" />
         </Button>
         {isHost && (
-          <Button variant="ghost" size="icon" data-testid="button-edit">
-            <Edit className="h-5 w-5" />
-          </Button>
+          <>
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" data-testid="button-edit">
+                  <Edit className="h-5 w-5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md" dir="rtl">
+                <DialogHeader>
+                  <DialogTitle>עריכת מפגש</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleEditSubmit} className="space-y-4">
+                  {/* Topic */}
+                  <div>
+                    <Label htmlFor="edit-topic">נושא *</Label>
+                    <Input
+                      id="edit-topic"
+                      value={editFormData.topic}
+                      onChange={(e) => updateEditFormData("topic", e.target.value)}
+                      required
+                      className="mt-2"
+                    />
+                  </div>
+
+                  {/* Title */}
+                  <div>
+                    <Label htmlFor="edit-title">כותרת *</Label>
+                    <Input
+                      id="edit-title"
+                      value={editFormData.title}
+                      onChange={(e) => updateEditFormData("title", e.target.value)}
+                      required
+                      className="mt-2"
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <Label htmlFor="edit-description">תיאור *</Label>
+                    <Textarea
+                      id="edit-description"
+                      value={editFormData.description}
+                      onChange={(e) => updateEditFormData("description", e.target.value)}
+                      required
+                      className="mt-2"
+                      rows={3}
+                    />
+                  </div>
+
+                  {/* Date & Time */}
+                  <div>
+                    <Label htmlFor="edit-startAt">תאריך ושעה *</Label>
+                    <Input
+                      id="edit-startAt"
+                      type="datetime-local"
+                      value={editFormData.startAt}
+                      onChange={(e) => updateEditFormData("startAt", e.target.value)}
+                      required
+                      className="mt-2"
+                    />
+                  </div>
+
+                  {/* Location */}
+                  <div>
+                    <Label htmlFor="edit-location">מיקום *</Label>
+                    <Input
+                      id="edit-location"
+                      value={editFormData.location}
+                      onChange={(e) => updateEditFormData("location", e.target.value)}
+                      required
+                      className="mt-2"
+                    />
+                  </div>
+
+                  {/* Capacity */}
+                  <div>
+                    <Label htmlFor="edit-capacity">מספר משתתפים מקסימלי *</Label>
+                    <Select
+                      value={editFormData.capacity}
+                      onValueChange={(value) => updateEditFormData("capacity", value)}
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="בחר מספר משתתפים" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {capacities.map((cap) => (
+                          <SelectItem key={cap.value} value={cap.value.toString()}>
+                            {cap.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Icebreaker */}
+                  <div>
+                    <Label htmlFor="edit-icebreaker">שאלת פתיחה (אופציונלי)</Label>
+                    <Input
+                      id="edit-icebreaker"
+                      value={editFormData.icebreaker}
+                      onChange={(e) => updateEditFormData("icebreaker", e.target.value)}
+                      className="mt-2"
+                      placeholder="לדוגמה: מה הדבר הכי מעניין שקרה לכם השבוע?"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-4">
+                    <Button type="submit" className="flex-1" disabled={updateMeetupMutation.isPending}>
+                      {updateMeetupMutation.isPending ? "שומר..." : "שמור שינויים"}
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setEditDialogOpen(false)}
+                    >
+                      ביטול
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+            
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleDeleteMeetup}
+              data-testid="button-delete"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-5 w-5" />
+            </Button>
+          </>
         )}
       </div>
 
