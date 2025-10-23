@@ -7,12 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const logoPath = "/thinklink-logo.png";
 
 export default function CompleteProfilePage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -91,13 +93,15 @@ export default function CompleteProfilePage() {
         return;
       }
 
-      // Success - navigate to homepage
+      // Success - refresh profile status and navigate to homepage
       toast({
         title: "הפרופיל נשמר בהצלחה!",
         description: "ברוכים הבאים ל-ThinkLink"
       });
       
-      setLocation("/");
+      // Refresh the profile completion status in the auth context
+      // This will trigger the ProfileGatekeeper to allow access to the app
+      window.location.reload();
       
     } catch (error) {
       console.error('Unexpected error:', error);

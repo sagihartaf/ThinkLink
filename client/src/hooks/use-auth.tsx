@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
-import { useMutation, UseMutationResult } from "@tanstack/react-query";
+import { useMutation, UseMutationResult, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@supabase/supabase-js";
@@ -8,6 +8,7 @@ type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   error: Error | null;
+  profileComplete: boolean | null; // null = loading, true = complete, false = incomplete
   loginMutation: UseMutationResult<User, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
   registerMutation: UseMutationResult<User, Error, RegisterData>;
@@ -22,12 +23,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
+
+  // Function to check if user's profile is complete
+  const checkProfileCompletion = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        // If profile doesn't exist, it's incomplete
+        if (error.code === 'PGRST116') {
+          setProfileComplete(false);
+        } else {
+          console.error('Error checking profile:', error);
+          setProfileComplete(false);
+        }
+      } else {
+        // Profile exists, check if full_name is filled
+        setProfileComplete(!!profile?.full_name);
+      }
+    } catch (error) {
+      console.error('Unexpected error checking profile:', error);
+      setProfileComplete(false);
+    }
+  };
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setIsLoading(false);
+      
+      // Check profile completion if user exists
+      if (session?.user) {
+        checkProfileCompletion(session.user.id);
+      } else {
+        setProfileComplete(null);
+      }
     });
 
     // Listen for auth changes
@@ -35,6 +71,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (event, session) => {
         setUser(session?.user ?? null);
         setIsLoading(false);
+        
+        // Check profile completion if user exists
+        if (session?.user) {
+          checkProfileCompletion(session.user.id);
+        } else {
+          setProfileComplete(null);
+        }
       }
     );
 
@@ -102,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: user,
         isLoading,
         error,
+        profileComplete,
         loginMutation,
         logoutMutation,
         registerMutation,

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
+import { ProfileGatekeeper } from "@/components/profile-gatekeeper";
 import AuthPage from "@/pages/auth-page";
 import CompleteProfilePage from "@/pages/complete-profile-page";
 import HomePage from "@/pages/home-page";
@@ -36,7 +37,9 @@ function App() {
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <ProfileGatekeeper>
+            <Router />
+          </ProfileGatekeeper>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
