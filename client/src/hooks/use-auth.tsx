@@ -9,6 +9,7 @@ type AuthContextType = {
   isLoading: boolean;
   error: Error | null;
   profileComplete: boolean | null; // null = loading, true = complete, false = incomplete
+  refreshProfileStatus: () => Promise<void>;
   loginMutation: UseMutationResult<User, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
   registerMutation: UseMutationResult<User, Error, RegisterData>;
@@ -49,6 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Unexpected error checking profile:', error);
       setProfileComplete(false);
+    }
+  };
+
+  // Function to refresh profile status (exposed to components)
+  const refreshProfileStatus = async () => {
+    if (user) {
+      await checkProfileCompletion(user.id);
     }
   };
 
@@ -146,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         error,
         profileComplete,
+        refreshProfileStatus,
         loginMutation,
         logoutMutation,
         registerMutation,
