@@ -23,12 +23,16 @@ export default function HomePage() {
       const [, topic] = queryKey as [string, string];
       
       // Prepare parameters for the RPC function
-      // When topic is empty string (הכל), pass empty object to get all meetups
-      const rpcParams = topic && topic !== "" ? { p_topic: topic } : {};
+      // When topic is empty string (הכל), pass null to get all meetups
+      const rpcParams = topic && topic !== "" ? { p_topic: topic } : { p_topic: null };
+      
+      console.log("🔍 RPC call:", { topic, rpcParams });
       
       // Call the RPC function for both guests and authenticated users
       const { data, error } = await supabase
         .rpc('get_future_meetups', rpcParams);
+      
+      console.log("📊 RPC response:", { data: data?.length || 0, error });
       
       if (error) throw error;
       return data || [];
