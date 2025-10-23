@@ -122,14 +122,27 @@ export default function ProfilePage() {
 
   const submitFeedbackMutation = useMutation({
     mutationFn: async (data: { rating?: number; category: string; message: string }) => {
-      const response = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error("Failed to submit feedback");
-      return response.json();
+      // Get the current user to ensure we have a valid user ID
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      if (!currentUser) {
+        throw new Error('No user logged in');
+      }
+
+      const feedbackData = {
+        user_id: currentUser.id,
+        message: data.message,
+        rating: data.rating || null,
+        category: data.category
+        // created_at is handled by the database
+      };
+
+      const { error } = await supabase
+        .from('app_feedback')
+        .insert(feedbackData);
+
+      if (error) throw error;
+      return { success: true };
     },
     onSuccess: () => {
       setFeedbackDialogOpen(false);
