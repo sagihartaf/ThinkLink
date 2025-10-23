@@ -22,13 +22,40 @@ export default function HomePage() {
     queryFn: async ({ queryKey }) => {
       const [, topic] = queryKey as [string, string];
       
-      // Prepare parameters for the RPC function
-      // When topic is empty string (הכל), pass empty object to get all meetups
+      console.log("🔍 Meetups query executing:", { topic, user: user?.id || "guest" });
+      
+      // For guest users, use direct table query instead of RPC
+      if (!user) {
+        console.log("👤 Guest user - using direct table query");
+        let query = supabase
+          .from('meetups')
+          .select('*')
+          .gte('start_at', new Date().toISOString())
+          .order('start_at', { ascending: true });
+        
+        // Apply topic filter if not "הכל"
+        if (topic && topic !== "") {
+          query = query.eq('topic', topic);
+        }
+        
+        const { data, error } = await query;
+        
+        console.log("📊 Direct query response:", { data: data?.length || 0, error });
+        
+        if (error) throw error;
+        return data || [];
+      }
+      
+      // For authenticated users, use RPC function
+      console.log("👤 Authenticated user - using RPC");
       const rpcParams = topic && topic !== "" ? { p_topic: topic } : {};
       
-      // Call the RPC function instead of direct table query
+      console.log("📡 RPC params:", rpcParams);
+      
       const { data, error } = await supabase
         .rpc('get_future_meetups', rpcParams);
+      
+      console.log("📊 RPC response:", { data: data?.length || 0, error });
       
       if (error) throw error;
       return data || [];
@@ -112,7 +139,7 @@ export default function HomePage() {
 
       {/* Topic Filters */}
       <div className="px-6 py-4 bg-white border-b border-gray-200">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-row-reverse">
           <ChevronRight className="h-4 w-4 text-[#9AA0A6] flex-shrink-0" />
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 flex-1">
             {topics.map((topic) => (
