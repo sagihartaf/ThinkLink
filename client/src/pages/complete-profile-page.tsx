@@ -18,7 +18,8 @@ export default function CompleteProfilePage() {
   
   const [formData, setFormData] = useState({
     fullName: "",
-    birthdate: ""
+    birthdate: "",
+    instagramUrl: ""
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -116,7 +117,8 @@ export default function CompleteProfilePage() {
         id: user.id,
         full_name: formData.fullName,
         avatar_url: avatarUrl,
-        birthdate: formData.birthdate
+        birthdate: formData.birthdate,
+        instagram_url: formData.instagramUrl || null
       };
 
       // Save profile data
@@ -222,6 +224,22 @@ export default function CompleteProfilePage() {
                 className="mt-2 [&::-webkit-calendar-picker-indicator]:ml-2"
                 dir="ltr"
                 data-testid="input-birthdate"
+              />
+            </div>
+
+            {/* Instagram URL */}
+            <div>
+              <Label htmlFor="instagramUrl" className="text-[#1b1b1b] font-medium">
+                קישור לאינסטגרם
+              </Label>
+              <Input
+                id="instagramUrl"
+                type="url"
+                value={formData.instagramUrl}
+                onChange={(e) => updateFormData("instagramUrl", e.target.value)}
+                placeholder="https://instagram.com/yourusername"
+                className="mt-2"
+                data-testid="input-instagram-url"
               />
             </div>
 

@@ -18,13 +18,14 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [profile, setProfile] = useState<{ full_name: string; avatar_url: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string; avatar_url: string | null; instagram_url: string | null } | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     displayName: "",
-    photoUrl: ""
+    photoUrl: "",
+    instagramUrl: ""
   });
   const [feedbackForm, setFeedbackForm] = useState({
     rating: 0,
@@ -41,7 +42,7 @@ export default function ProfilePage() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('full_name, avatar_url')
+          .select('full_name, avatar_url, instagram_url')
           .eq('id', user.id)
           .single();
         
@@ -49,13 +50,14 @@ export default function ProfilePage() {
           console.error('Error fetching profile:', error);
           // If profile doesn't exist, create a default one
           if (error.code === 'PGRST116') {
-            setProfile({ full_name: user.email?.split('@')[0] || 'משתמש', avatar_url: null });
+            setProfile({ full_name: user.email?.split('@')[0] || 'משתמש', avatar_url: null, instagram_url: null });
           }
         } else {
           setProfile(data);
           setEditForm({
             displayName: data.full_name || '',
-            photoUrl: data.avatar_url || ''
+            photoUrl: data.avatar_url || '',
+            instagramUrl: data.instagram_url || ''
           });
         }
       } catch (error) {
@@ -73,13 +75,14 @@ export default function ProfilePage() {
     if (profile) {
       setEditForm({
         displayName: profile.full_name || '',
-        photoUrl: profile.avatar_url || ''
+        photoUrl: profile.avatar_url || '',
+        instagramUrl: profile.instagram_url || ''
       });
     }
   }, [profile]);
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { displayName: string; photoUrl?: string }) => {
+    mutationFn: async (data: { displayName: string; photoUrl?: string; instagramUrl?: string }) => {
       if (!user?.id) throw new Error("User not authenticated");
       
       const { error } = await supabase
@@ -87,7 +90,8 @@ export default function ProfilePage() {
         .upsert({
           id: user.id,
           full_name: data.displayName,
-          avatar_url: data.photoUrl || null
+          avatar_url: data.photoUrl || null,
+          instagram_url: data.instagramUrl || null
         });
       
       if (error) throw error;
@@ -165,7 +169,8 @@ export default function ProfilePage() {
     e.preventDefault();
     updateProfileMutation.mutate({
       displayName: editForm.displayName,
-      photoUrl: editForm.photoUrl || undefined
+      photoUrl: editForm.photoUrl || undefined,
+      instagramUrl: editForm.instagramUrl || undefined
     });
   };
 
@@ -216,6 +221,20 @@ export default function ProfilePage() {
             <p className="text-[#9AA0A6]" data-testid="text-email">
               {user?.email}
             </p>
+            {profile?.instagram_url && (
+              <div className="mt-2">
+                <a 
+                  href={profile.instagram_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-[#8c52ff] hover:text-[#5ce1e6] transition-colors"
+                  data-testid="link-instagram"
+                >
+                  <img src="/icons/instagram-color-svgrepo-com.svg" alt="Instagram" className="w-5 h-5" />
+                  <span className="text-sm">אינסטגרם</span>
+                </a>
+              </div>
+            )}
           </div>
         </div>
 
@@ -272,6 +291,20 @@ export default function ProfilePage() {
                       dir="ltr"
                       className="mt-2"
                       data-testid="input-edit-photo-url"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="editInstagramUrl">קישור לאינסטגרם (אופציונלי)</Label>
+                    <Input
+                      id="editInstagramUrl"
+                      type="url"
+                      value={editForm.instagramUrl}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, instagramUrl: e.target.value }))}
+                      placeholder="https://instagram.com/yourusername"
+                      dir="ltr"
+                      className="mt-2"
+                      data-testid="input-edit-instagram-url"
                     />
                   </div>
                 </div>
