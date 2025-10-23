@@ -62,7 +62,7 @@ export default function UserProfilePage() {
   }, [profileData]);
 
   const handleBack = () => {
-    setLocation(-1); // Go back to previous page
+    window.history.back();
   };
 
   if (isLoading) {
