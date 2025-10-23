@@ -18,9 +18,9 @@ export default function CompleteProfilePage() {
   
   const [formData, setFormData] = useState({
     fullName: "",
-    profilePictureUrl: "",
     birthdate: ""
   });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateFormData = (field: keyof typeof formData, value: string) => {
@@ -69,11 +69,53 @@ export default function CompleteProfilePage() {
         return;
       }
 
+      // Handle avatar file upload if selected
+      let avatarUrl: string | null = null;
+      if (avatarFile) {
+        try {
+          // Create unique file path
+          const fileExtension = avatarFile.name.split('.').pop();
+          const filePath = `${user.id}/avatar-${Date.now()}.${fileExtension}`;
+          
+          // Upload file to Supabase Storage
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, avatarFile);
+          
+          if (uploadError) {
+            console.error('Error uploading avatar:', uploadError);
+            toast({
+              title: "שגיאה בהעלאת התמונה",
+              description: "אנא נסו שוב מאוחר יותר",
+              variant: "destructive"
+            });
+            setIsSubmitting(false);
+            return;
+          }
+          
+          // Get public URL for the uploaded file
+          const { data: urlData } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+          
+          avatarUrl = urlData.publicUrl;
+        } catch (error) {
+          console.error('Unexpected error uploading avatar:', error);
+          toast({
+            title: "שגיאה בהעלאת התמונה",
+            description: "אנא נסו שוב מאוחר יותר",
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       // Prepare profile data with snake_case keys
       const profileData = {
         id: user.id,
         full_name: formData.fullName,
-        avatar_url: formData.profilePictureUrl || null,
+        avatar_url: avatarUrl,
         birthdate: formData.birthdate
       };
 
@@ -148,23 +190,22 @@ export default function CompleteProfilePage() {
               />
             </div>
 
-            {/* Profile Picture URL */}
+            {/* Profile Picture Upload */}
             <div>
-              <Label htmlFor="profilePictureUrl" className="text-[#1b1b1b] font-medium">
-                קישור לתמונת פרופיל (URL)
+              <Label htmlFor="avatarFile" className="text-[#1b1b1b] font-medium">
+                העלאת תמונת פרופיל
               </Label>
               <Input
-                id="profilePictureUrl"
-                type="url"
-                value={formData.profilePictureUrl}
-                onChange={(e) => updateFormData("profilePictureUrl", e.target.value)}
-                placeholder="https://example.com/photo.jpg"
+                id="avatarFile"
+                type="file"
+                accept="image/png, image/jpeg, image/jpg"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setAvatarFile(file);
+                }}
                 className="mt-2"
-                data-testid="input-profile-picture-url"
+                data-testid="input-avatar-file"
               />
-              <p className="text-[#9AA0A6] text-xs mt-1">
-                בהמשך נוסיף אפשרות להעלאת קובץ
-              </p>
             </div>
 
             {/* Birthdate */}
