@@ -29,17 +29,18 @@ export default function MyEventsPage() {
       
       if (!participations || participations.length === 0) return [];
       
-      // Get meetups for these participations
+      // Get meetups for these participations using RPC function for timezone-aware filtering
       const meetupIds = participations.map(p => p.meetup_id);
+      
+      // Use RPC function to get future meetups with proper timezone handling
       const { data: meetups, error: meetupsError } = await supabase
-        .from('meetups')
-        .select('*')
-        .in('id', meetupIds)
-        .gte('start_at', new Date().toISOString()) // Only future meetups
-        .order('start_at', { ascending: true });
+        .rpc('get_future_meetups', {});
       
       if (meetupsError) throw meetupsError;
-      return meetups || [];
+      
+      // Filter to only include meetups the user has joined
+      const userJoinedMeetups = meetups?.filter(meetup => meetupIds.includes(meetup.id)) || [];
+      return userJoinedMeetups;
     },
     enabled: activeTab === "joined" && !!user?.id
   });
@@ -49,15 +50,15 @@ export default function MyEventsPage() {
     queryFn: async () => {
       if (!user?.id) return [];
       
+      // Use RPC function to get future meetups with proper timezone handling
       const { data: meetups, error } = await supabase
-        .from('meetups')
-        .select('*')
-        .eq('host_id', user.id)
-        .gte('start_at', new Date().toISOString()) // Only future meetups
-        .order('start_at', { ascending: true });
+        .rpc('get_future_meetups', {});
       
       if (error) throw error;
-      return meetups || [];
+      
+      // Filter to only include meetups hosted by this user
+      const userHostedMeetups = meetups?.filter(meetup => meetup.host_id === user.id) || [];
+      return userHostedMeetups;
     },
     enabled: activeTab === "hosting" && !!user?.id
   });
