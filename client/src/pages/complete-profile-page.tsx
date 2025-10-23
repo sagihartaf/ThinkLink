@@ -3,11 +3,14 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { availableTopics } from "@/constants/topics";
 
 const logoPath = "/thinklink-logo.png";
 
@@ -19,13 +22,23 @@ export default function CompleteProfilePage() {
   const [formData, setFormData] = useState({
     fullName: "",
     birthdate: "",
-    instagramUrl: ""
+    instagramUrl: "",
+    aboutMe: ""
   });
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateFormData = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleInterestToggle = (interest: string) => {
+    setSelectedInterests(prev => 
+      prev.includes(interest) 
+        ? prev.filter(i => i !== interest)
+        : [...prev, interest]
+    );
   };
 
   const calculateAge = (birthdate: string): number => {
@@ -118,7 +131,9 @@ export default function CompleteProfilePage() {
         full_name: formData.fullName,
         avatar_url: avatarUrl,
         birthdate: formData.birthdate,
-        instagram_url: formData.instagramUrl || null
+        instagram_url: formData.instagramUrl || null,
+        about_me: formData.aboutMe || null,
+        interests: selectedInterests.length > 0 ? selectedInterests : null
       };
 
       // Save profile data
@@ -241,6 +256,46 @@ export default function CompleteProfilePage() {
                 className="mt-2"
                 data-testid="input-instagram-url"
               />
+            </div>
+
+            {/* About Me */}
+            <div>
+              <Label htmlFor="aboutMe" className="text-[#1b1b1b] font-medium">
+                קצת עליי
+              </Label>
+              <Textarea
+                id="aboutMe"
+                value={formData.aboutMe}
+                onChange={(e) => updateFormData("aboutMe", e.target.value)}
+                placeholder="ספרו קצת על עצמכם..."
+                rows={4}
+                className="mt-2 resize-none"
+                data-testid="textarea-about-me"
+              />
+            </div>
+
+            {/* Interests */}
+            <div>
+              <Label className="text-[#1b1b1b] font-medium">
+                תחומי עניין
+              </Label>
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                {availableTopics.map((topic) => (
+                  <div key={topic} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`interest-${topic}`}
+                      checked={selectedInterests.includes(topic)}
+                      onCheckedChange={() => handleInterestToggle(topic)}
+                    />
+                    <Label
+                      htmlFor={`interest-${topic}`}
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {topic}
+                    </Label>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Submit Button */}

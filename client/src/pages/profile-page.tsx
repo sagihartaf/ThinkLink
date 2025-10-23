@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { UserPen, MessageSquare, LogOut, X, Star } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { availableTopics } from "@/constants/topics";
 const logoPath = "/thinklink-logo.png";
 
 export default function ProfilePage() {
@@ -18,15 +20,17 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [profile, setProfile] = useState<{ full_name: string; avatar_url: string | null; instagram_url: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string; avatar_url: string | null; instagram_url: string | null; about_me: string | null; interests: string[] | null } | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     displayName: "",
     photoUrl: "",
-    instagramUrl: ""
+    instagramUrl: "",
+    aboutMe: ""
   });
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [feedbackForm, setFeedbackForm] = useState({
     rating: 0,
     category: "",
@@ -42,7 +46,7 @@ export default function ProfilePage() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('full_name, avatar_url, instagram_url')
+          .select('full_name, avatar_url, instagram_url, about_me, interests')
           .eq('id', user.id)
           .single();
         
@@ -50,15 +54,17 @@ export default function ProfilePage() {
           console.error('Error fetching profile:', error);
           // If profile doesn't exist, create a default one
           if (error.code === 'PGRST116') {
-            setProfile({ full_name: user.email?.split('@')[0] || 'משתמש', avatar_url: null, instagram_url: null });
+            setProfile({ full_name: user.email?.split('@')[0] || 'משתמש', avatar_url: null, instagram_url: null, about_me: null, interests: null });
           }
         } else {
           setProfile(data);
           setEditForm({
             displayName: data.full_name || '',
             photoUrl: data.avatar_url || '',
-            instagramUrl: data.instagram_url || ''
+            instagramUrl: data.instagram_url || '',
+            aboutMe: data.about_me || ''
           });
+          setSelectedInterests(data.interests || []);
         }
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -76,13 +82,23 @@ export default function ProfilePage() {
       setEditForm({
         displayName: profile.full_name || '',
         photoUrl: profile.avatar_url || '',
-        instagramUrl: profile.instagram_url || ''
+        instagramUrl: profile.instagram_url || '',
+        aboutMe: profile.about_me || ''
       });
+      setSelectedInterests(profile.interests || []);
     }
   }, [profile]);
 
+  const handleInterestToggle = (interest: string) => {
+    setSelectedInterests(prev => 
+      prev.includes(interest) 
+        ? prev.filter(i => i !== interest)
+        : [...prev, interest]
+    );
+  };
+
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { displayName: string; photoUrl?: string; instagramUrl?: string }) => {
+    mutationFn: async (data: { displayName: string; photoUrl?: string; instagramUrl?: string; aboutMe?: string; interests?: string[] }) => {
       if (!user?.id) throw new Error("User not authenticated");
       
       const { error } = await supabase
@@ -91,7 +107,9 @@ export default function ProfilePage() {
           id: user.id,
           full_name: data.displayName,
           avatar_url: data.photoUrl || null,
-          instagram_url: data.instagramUrl || null
+          instagram_url: data.instagramUrl || null,
+          about_me: data.aboutMe || null,
+          interests: data.interests || null
         });
       
       if (error) throw error;
@@ -102,7 +120,7 @@ export default function ProfilePage() {
       if (user?.id) {
         supabase
           .from('profiles')
-          .select('full_name, avatar_url')
+          .select('full_name, avatar_url, instagram_url, about_me, interests')
           .eq('id', user.id)
           .single()
           .then(({ data }) => {
@@ -170,7 +188,9 @@ export default function ProfilePage() {
     updateProfileMutation.mutate({
       displayName: editForm.displayName,
       photoUrl: editForm.photoUrl || undefined,
-      instagramUrl: editForm.instagramUrl || undefined
+      instagramUrl: editForm.instagramUrl || undefined,
+      aboutMe: editForm.aboutMe || undefined,
+      interests: selectedInterests.length > 0 ? selectedInterests : undefined
     });
   };
 
@@ -306,6 +326,40 @@ export default function ProfilePage() {
                       className="mt-2"
                       data-testid="input-edit-instagram-url"
                     />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="editAboutMe">קצת עליי (אופציונלי)</Label>
+                    <Textarea
+                      id="editAboutMe"
+                      value={editForm.aboutMe}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, aboutMe: e.target.value }))}
+                      placeholder="ספרו קצת על עצמכם..."
+                      rows={4}
+                      className="mt-2 resize-none"
+                      data-testid="textarea-edit-about-me"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label className="text-[#1b1b1b] font-medium">תחומי עניין (אופציונלי)</Label>
+                    <div className="mt-2 grid grid-cols-2 gap-3">
+                      {availableTopics.map((topic) => (
+                        <div key={topic} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`edit-interest-${topic}`}
+                            checked={selectedInterests.includes(topic)}
+                            onCheckedChange={() => handleInterestToggle(topic)}
+                          />
+                          <Label
+                            htmlFor={`edit-interest-${topic}`}
+                            className="text-sm font-normal cursor-pointer"
+                          >
+                            {topic}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 

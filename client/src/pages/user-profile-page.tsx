@@ -178,8 +178,8 @@ export default function UserProfilePage() {
 
         {/* About Me Section */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-[#1b1b1b] mb-4">קצת עליי</h3>
-          <div className="text-[#1b1b1b] leading-relaxed">
+          <h3 className="text-lg font-semibold text-[#1b1b1b] mb-4 text-right">קצת עליי</h3>
+          <div className="text-[#1b1b1b] leading-relaxed text-right">
             {profile.about_me ? (
               <p>{profile.about_me}</p>
             ) : (
@@ -190,8 +190,8 @@ export default function UserProfilePage() {
 
         {/* Interests Section */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-[#1b1b1b] mb-4">תחומי עניין</h3>
-          <div className="flex flex-wrap gap-2">
+          <h3 className="text-lg font-semibold text-[#1b1b1b] mb-4 text-right">תחומי עניין</h3>
+          <div className="flex flex-wrap gap-2 justify-end">
             {profile.interests && profile.interests.length > 0 ? (
               profile.interests.map((interest, index) => (
                 <span
@@ -202,7 +202,7 @@ export default function UserProfilePage() {
                 </span>
               ))
             ) : (
-              <p className="text-[#9AA0A6] italic">אין עדיין תחומי עניין...</p>
+              <p className="text-[#9AA0A6] italic text-right">אין עדיין תחומי עניין...</p>
             )}
           </div>
         </Card>

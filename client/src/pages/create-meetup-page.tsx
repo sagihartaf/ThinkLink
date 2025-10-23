@@ -9,20 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowRight, Info } from "lucide-react";
+import { ArrowRight, Info, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
-
-const topics = [
-  { value: "טכנולוגיה", label: "טכנולוגיה" },
-  { value: "תרבות", label: "תרבות" },
-  { value: "פילוסופיה", label: "פילוסופיה" },
-  { value: "פסיכולוגיה", label: "פסיכולוגיה" },
-  { value: "ספורט", label: "ספורט" },
-  { value: "מוזיקה", label: "מוזיקה" },
-  { value: "פיננסים", label: "פיננסים" },
-  { value: "אחר", label: "אחר" }
-];
+import { topics } from "@/constants/topics";
 
 const capacities = [
   { value: 2, label: "2 משתתפים" },
