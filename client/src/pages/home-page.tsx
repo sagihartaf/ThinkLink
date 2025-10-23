@@ -17,7 +17,7 @@ export default function HomePage() {
   const [, setLocation] = useLocation();
   const [selectedTopic, setSelectedTopic] = useState("הכל");
 
-  const { data: meetups = [], isLoading } = useQuery<(Meetup & { joined_count?: number })[]>({
+  const { data: meetups = [], isLoading } = useQuery<(Meetup & { joined_count?: number; participant_count?: number; max_participants?: number })[]>({
     queryKey: ["meetups", selectedTopic === "הכל" ? "" : selectedTopic],
     queryFn: async ({ queryKey }) => {
       const [, topic] = queryKey as [string, string];
