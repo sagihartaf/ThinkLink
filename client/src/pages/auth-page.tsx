@@ -56,12 +56,8 @@ export default function AuthPage() {
     sessionStorage.setItem('onboardingComplete', 'true');
     
     setShowOnboarding(false);
-    // If there's a redirectTo parameter, go to auth instead of home
-    if (redirectTo) {
-      setShowAuth(true);
-    } else {
-      setLocation("/home"); // Go directly to home if no redirect needed
-    }
+    // Always show auth form after onboarding completion
+    setShowAuth(true);
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -105,7 +101,7 @@ export default function AuthPage() {
       const { error } = await supabase
         .from('profiles')
         .insert({
-          id: user.id,
+          id: (user as any).id,
           full_name: displayName,
           avatar_url: photoUrl || null
         });
