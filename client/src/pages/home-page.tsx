@@ -10,23 +10,34 @@ import { supabase } from "@/lib/supabase";
 const logoPath = "/thinklink-logo.png";
 import type { Meetup } from "@shared/schema";
 
+// Extended type to include host information from the optimized function
+type MeetupWithHost = Meetup & {
+  host_name: string | null;
+  host_avatar_url: string | null;
+};
+
 const topics = ["הכל", "טכנולוגיה", "תרבות", "פילוסופיה", "פסיכולוגיה", "ספורט", "מוזיקה", "פיננסים", "אחר"];
 
 export default function HomePage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedTopic, setSelectedTopic] = useState("הכל");
+  const [currentPage, setCurrentPage] = useState(0);
+  const MEETUPS_PER_PAGE = 20;
 
-  const { data: meetups = [], isLoading } = useQuery<Meetup[]>({
-    queryKey: ["meetups", selectedTopic === "הכל" ? "" : selectedTopic],
+  const { data: meetups = [], isLoading } = useQuery<MeetupWithHost[]>({
+    queryKey: ["meetups", selectedTopic === "הכל" ? "" : selectedTopic, currentPage],
     queryFn: async ({ queryKey }) => {
-      const [, topic] = queryKey as [string, string];
+      const [, topic, page] = queryKey as [string, string, number];
       
-      // Prepare parameters for the RPC function
-      // When topic is empty string (הכל), pass empty object to get all meetups
-      const rpcParams = topic && topic !== "" ? { p_topic: topic } : {};
+      // Prepare parameters for the optimized RPC function
+      const rpcParams = {
+        p_topic: topic && topic !== "" ? topic : null,
+        p_limit: MEETUPS_PER_PAGE,
+        p_offset: page * MEETUPS_PER_PAGE
+      };
       
-      // Call the RPC function for both guests and authenticated users
+      // Call the optimized RPC function with pagination
       const { data, error } = await supabase
         .rpc('get_future_meetups', rpcParams);
       
@@ -80,6 +91,25 @@ export default function HomePage() {
     }
   };
 
+  // Reset page when topic changes
+  const handleTopicChange = (topic: string) => {
+    setSelectedTopic(topic);
+    setCurrentPage(0);
+  };
+
+  // Pagination handlers
+  const handleNextPage = () => {
+    if (meetups.length === MEETUPS_PER_PAGE) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(prev => prev - 1);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f4f9ff] pb-20" dir="rtl">
       {/* Header */}
@@ -120,7 +150,7 @@ export default function HomePage() {
                 key={topic}
                 variant="secondary"
                 size="sm"
-                onClick={() => setSelectedTopic(topic)}
+                onClick={() => handleTopicChange(topic)}
                 className={`whitespace-nowrap font-medium text-sm ${
                   selectedTopic === topic
                     ? "bg-[#4A90E2] text-[#f4f9ff] hover:bg-[#4A90E2]/90"
@@ -157,15 +187,42 @@ export default function HomePage() {
             אין מפגשים זמינים בנושא זה כרגע
           </div>
         ) : (
-          <div className="space-y-4">
-            {meetups.map((meetup) => (
-              <MeetupCard 
-                key={meetup.id} 
-                meetup={meetup}
-                onClick={() => handleMeetupClick(meetup.id)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="space-y-4">
+              {meetups.map((meetup) => (
+                <MeetupCard 
+                  key={meetup.id} 
+                  meetup={meetup}
+                  onClick={() => handleMeetupClick(meetup.id)}
+                />
+              ))}
+            </div>
+            
+            {/* Pagination Controls */}
+            {(currentPage > 0 || meetups.length === MEETUPS_PER_PAGE) && (
+              <div className="flex justify-center gap-4 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 0}
+                  className="px-4 py-2"
+                >
+                  עמוד קודם
+                </Button>
+                <span className="flex items-center text-sm text-gray-600">
+                  עמוד {currentPage + 1}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={handleNextPage}
+                  disabled={meetups.length < MEETUPS_PER_PAGE}
+                  className="px-4 py-2"
+                >
+                  עמוד הבא
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
