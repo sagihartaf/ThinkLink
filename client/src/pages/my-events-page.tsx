@@ -36,10 +36,15 @@ export default function MyEventsPage() {
       const meetupIds = participations.map(p => p.meetup_id);
       
       // Use RPC function to get future meetups with proper timezone handling
+      // Pass pagination parameters to get all meetups (limit 1000 to get all)
+      console.log('📞 Calling get_future_meetups (joined tab) with pagination...');
       const { data: meetups, error: meetupsError } = await supabase
-        .rpc('get_future_meetups', {});
+        .rpc('get_future_meetups', { p_limit: 1000, p_offset: 0 });
       
-      if (meetupsError) throw meetupsError;
+      if (meetupsError) {
+        console.error('❌ Meetup fetch failed on MyEventsPage (joined):', meetupsError);
+        throw meetupsError;
+      }
       
       // Filter to only include meetups the user has joined
       // Convert both to strings for reliable comparison
@@ -59,10 +64,15 @@ export default function MyEventsPage() {
       console.log('🔍 Fetching hosted meetups for user:', user.id);
       
       // Use RPC function to get future meetups with proper timezone handling
+      // Pass pagination parameters to get all meetups (limit 1000 to get all)
+      console.log('📞 Calling get_future_meetups with pagination...');
       const { data: meetups, error } = await supabase
-        .rpc('get_future_meetups', {});
+        .rpc('get_future_meetups', { p_limit: 1000, p_offset: 0 });
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Meetup fetch failed on MyEventsPage:', error);
+        throw error;
+      }
       
       console.log('📊 Total meetups fetched:', meetups?.length);
       console.log('🔎 Sample meetup data structure:', meetups?.[0]);
