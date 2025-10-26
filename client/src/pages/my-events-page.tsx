@@ -10,8 +10,34 @@ import type { Meetup } from "@shared/schema";
 
 export default function MyEventsPage() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<"joined" | "hosting">("joined");
+
+  // Add loading guard for authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#f4f9ff] pb-20" dir="rtl">
+        <div className="bg-white border-b border-gray-200 px-6 py-6">
+          <h1 className="text-2xl font-bold text-[#1b1b1b]">המפגשים שלי</h1>
+        </div>
+        <div className="px-6 py-4">
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 animate-pulse">
+                <div className="space-y-3">
+                  <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+                  <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <BottomNav currentRoute="my-events" />
+      </div>
+    );
+  }
 
   const { data: joinedMeetups = [], isLoading: joinedLoading } = useQuery<(Meetup & { joined_count?: number })[]>({
     queryKey: ["joined-meetups", user?.id],
@@ -53,17 +79,26 @@ export default function MyEventsPage() {
     queryFn: async () => {
       if (!user?.id) return [];
       
+      console.log('🔍 Fetching hosted meetups for user:', user.id);
+      
       // Use RPC function to get future meetups with proper timezone handling
       const { data: meetups, error } = await supabase
         .rpc('get_future_meetups', {});
       
       if (error) throw error;
       
+      console.log('📊 Total meetups fetched:', meetups?.length);
+      console.log('🔎 Sample meetup data structure:', meetups?.[0]);
+      
       // Filter to only include meetups hosted by this user
       // Convert both to strings for reliable comparison (host_id is UUID, user.id might be different type)
-      const userHostedMeetups = meetups?.filter((meetup: any) => 
-        String(meetup.host_id) === String(user.id)
-      ) || [];
+      const userHostedMeetups = meetups?.filter((meetup: any) => {
+        const match = String(meetup.host_id) === String(user.id);
+        if (match) console.log('✅ Match found:', meetup.id, meetup.title);
+        return match;
+      }) || [];
+      
+      console.log('🎯 Filtered hosted meetups count:', userHostedMeetups.length);
       return userHostedMeetups;
     },
     enabled: activeTab === "hosting" && !!user?.id
