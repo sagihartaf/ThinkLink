@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { ProfileGatekeeper } from "@/components/profile-gatekeeper";
+import { Analytics } from "@vercel/analytics/react";
 import AuthPage from "@/pages/auth-page";
 import CompleteProfilePage from "@/pages/complete-profile-page";
 import HomePage from "@/pages/home-page";
@@ -44,6 +45,7 @@ function App() {
           </ProfileGatekeeper>
         </TooltipProvider>
       </AuthProvider>
+      <Analytics />
     </QueryClientProvider>
   );
 }
