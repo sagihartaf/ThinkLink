@@ -39,7 +39,10 @@ export default function MyEventsPage() {
       if (meetupsError) throw meetupsError;
       
       // Filter to only include meetups the user has joined
-      const userJoinedMeetups = meetups?.filter(meetup => meetupIds.includes(meetup.id)) || [];
+      // Convert both to strings for reliable comparison
+      const userJoinedMeetups = meetups?.filter((meetup: any) => 
+        meetupIds.includes(String(meetup.id))
+      ) || [];
       return userJoinedMeetups;
     },
     enabled: activeTab === "joined" && !!user?.id
@@ -57,7 +60,10 @@ export default function MyEventsPage() {
       if (error) throw error;
       
       // Filter to only include meetups hosted by this user
-      const userHostedMeetups = meetups?.filter(meetup => meetup.host_id === user.id) || [];
+      // Convert both to strings for reliable comparison (host_id is UUID, user.id might be different type)
+      const userHostedMeetups = meetups?.filter((meetup: any) => 
+        String(meetup.host_id) === String(user.id)
+      ) || [];
       return userHostedMeetups;
     },
     enabled: activeTab === "hosting" && !!user?.id
