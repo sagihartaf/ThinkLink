@@ -276,7 +276,7 @@ export default function ProfilePage() {
                 <div className="text-[#9AA0A6]">←</div>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md" dir="rtl">
+            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto" dir="rtl">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold">עריכת פרופיל</DialogTitle>
               </DialogHeader>
