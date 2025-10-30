@@ -302,10 +302,11 @@ export default function AuthPage() {
             {isGoogleLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              // Google "G" logo SVG
-              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="#EA4335" d="M12 10.2v3.9h5.4c-.2 1.1-1.6 3.2-5.4 3.2-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.8 2.9 14.6 2 12 2 6.9 2 2.7 6.2 2.7 11.3S6.9 20.7 12 20.7c6.9 0 9.3-4.8 9.3-7.3 0-.5 0-.9-.1-1.2H12z"/>
-              </svg>
+              <img
+                src="/icons/google-svgrepo-com.svg"
+                alt="Google"
+                className="mr-2 h-4 w-4"
+              />
             )}
             התחברות עם גוגל
           </Button>
