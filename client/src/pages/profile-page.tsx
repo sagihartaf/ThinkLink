@@ -31,6 +31,7 @@ export default function ProfilePage() {
     aboutMe: ""
   });
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [feedbackForm, setFeedbackForm] = useState({
     rating: 0,
     category: "",
@@ -183,15 +184,40 @@ export default function ProfilePage() {
     }
   });
 
-  const handleEditProfile = (e: React.FormEvent) => {
+  const handleEditProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfileMutation.mutate({
-      displayName: editForm.displayName,
-      photoUrl: editForm.photoUrl || undefined,
-      instagramUrl: editForm.instagramUrl || undefined,
-      aboutMe: editForm.aboutMe || undefined,
-      interests: selectedInterests.length > 0 ? selectedInterests : undefined
-    });
+    let newAvatarUrl: string | undefined = editForm.photoUrl || undefined;
+    try {
+      // If user selected a new file, upload it to Supabase Storage first
+      if (avatarFile && user?.id) {
+        const fileExtension = avatarFile.name.split('.').pop();
+        const filePath = `${user.id}/avatar-${Date.now()}.${fileExtension}`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, avatarFile);
+        if (uploadError) {
+          throw uploadError;
+        }
+        const { data: urlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+        newAvatarUrl = urlData.publicUrl;
+      }
+
+      updateProfileMutation.mutate({
+        displayName: editForm.displayName,
+        photoUrl: newAvatarUrl,
+        instagramUrl: editForm.instagramUrl || undefined,
+        aboutMe: editForm.aboutMe || undefined,
+        interests: selectedInterests.length > 0 ? selectedInterests : undefined
+      });
+    } catch (error: any) {
+      toast({
+        title: "שגיאה בהעלאת התמונה",
+        description: error?.message || "אנא נסו שוב מאוחר יותר",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleFeedback = (e: React.FormEvent) => {
@@ -301,16 +327,17 @@ export default function ProfilePage() {
                   </div>
                   
                   <div>
-                    <Label htmlFor="editPhotoUrl">תמונת פרופיל (אופציונלי)</Label>
+                    <Label htmlFor="editAvatarFile">העלאת תמונת פרופיל (אופציונלי)</Label>
                     <Input
-                      id="editPhotoUrl"
-                      type="url"
-                      value={editForm.photoUrl}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, photoUrl: e.target.value }))}
-                      placeholder="קישור לתמונה"
-                      dir="ltr"
+                      id="editAvatarFile"
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setAvatarFile(file);
+                      }}
                       className="mt-2"
-                      data-testid="input-edit-photo-url"
+                      data-testid="input-edit-avatar-file"
                     />
                   </div>
                   
