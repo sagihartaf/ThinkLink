@@ -37,6 +37,7 @@ export default function AuthPage() {
   const [displayName, setDisplayName] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [rememberMe, setRememberMe] = useState(true); // Default to true for persistent login
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -121,6 +122,26 @@ export default function AuthPage() {
         description: error.message || "שגיאת רשת",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsGoogleLoading(true);
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+      if (error) {
+        throw error;
+      }
+      // Redirect is handled by Supabase; auth state changes are handled by the global listener
+    } catch (error: any) {
+      console.error('Google sign-in error:', error);
+      toast({
+        title: "שגיאת התחברות",
+        description: error?.message || "ניסיון התחברות עם גוגל נכשל",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -261,6 +282,34 @@ export default function AuthPage() {
             </Button>
           </form>
           
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">או</span>
+            </div>
+          </div>
+
+          <Button 
+            type="button"
+            variant="outline"
+            className="w-full py-3"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleLoading}
+            data-testid="button-google-signin"
+          >
+            {isGoogleLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              // Google "G" logo SVG
+              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#EA4335" d="M12 10.2v3.9h5.4c-.2 1.1-1.6 3.2-5.4 3.2-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.8 2.9 14.6 2 12 2 6.9 2 2.7 6.2 2.7 11.3S6.9 20.7 12 20.7c6.9 0 9.3-4.8 9.3-7.3 0-.5 0-.9-.1-1.2H12z"/>
+              </svg>
+            )}
+            התחברות עם גוגל
+          </Button>
+
           <div className="text-center mt-4">
             <Button
               variant="link"
