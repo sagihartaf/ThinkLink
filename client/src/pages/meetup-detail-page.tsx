@@ -613,7 +613,7 @@ export default function MeetupDetailPage() {
                   <Edit className="h-5 w-5" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md" dir="rtl">
+              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" dir="rtl">
                 <DialogHeader>
                   <DialogTitle>עריכת מפגש</DialogTitle>
                 </DialogHeader>
